@@ -11,7 +11,10 @@ type RoomInfo struct {
 	CheckoutTime time.Time `gorm:"type:datetime"`
 	State        int
 	CurrentSpeed string  `gorm:"type:varchar(255)"`
-	CurrentTemp  float32 `gorm:"type:float"`
+	CurrentTemp  float32 `gorm:"type:floadd dd dd ddt"`
+	ACState      int     // 0: 关闭 1: 开启
+	Mode         string  `gorm:"type:varchar(20)"` // cooling/heating
+	TargetTemp   float32 `gorm:"type:float(5, 2)"`
 }
 
 // 操作日志表

@@ -1,0 +1,520 @@
+2024/11/30 01:42:42 [32m[INFO] Server is running on port 8080[0m
+2024/11/30 01:44:21 [32m[INFO] Room 1: Current temp 32.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:22 [32m[INFO] Room 1: Current temp 31.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:22 [32m[INFO] Room 2: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:22 [32m[INFO] Room 5: Current temp 35.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:23 [32m[INFO] Room 1: Current temp 31.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:23 [32m[INFO] Room 2: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:23 [32m[INFO] Room 5: Current temp 34.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:24 [32m[INFO] Room 1: Current temp 30.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:24 [32m[INFO] Room 2: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:24 [32m[INFO] Room 5: Current temp 34.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:25 [32m[INFO] Room 2: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:25 [32m[INFO] Room 5: Current temp 33.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:25 [32m[INFO] Room 1: Current temp 30.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:26 [32m[INFO] Room 1: Current temp 29.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:26 [32m[INFO] Room 2: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:26 [32m[INFO] Room 5: Current temp 33.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:27 [32m[INFO] Room 1: Current temp 29.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:27 [32m[INFO] Room 2: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:27 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:44:27 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:44:27 [32m[INFO] Room 5: Current temp 32.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:28 [32m[INFO] Room 1: Current temp 28.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:28 [32m[INFO] Room 5: Current temp 32.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:29 [32m[INFO] Room 1: Current temp 28.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:29 [32m[INFO] Room 5: Current temp 31.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:30 [32m[INFO] Room 5: Current temp 31.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:30 [32m[INFO] Room 1: Current temp 27.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:31 [32m[INFO] Room 1: Current temp 27.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:31 [32m[INFO] Room 5: Current temp 30.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:32 [32m[INFO] Room 3: Current temp 30.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:32 [32m[INFO] Room 5: Current temp 30.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:32 [32m[INFO] Room 1: Current temp 26.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:33 [32m[INFO] Room 5: Current temp 29.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:33 [32m[INFO] Room 1: Current temp 26.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:33 [32m[INFO] Room 3: Current temp 29.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:34 [32m[INFO] Room 1: Current temp 25.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:34 [32m[INFO] Room 3: Current temp 29.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:34 [32m[INFO] Room 5: Current temp 29.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:35 [32m[INFO] Room 1: Current temp 25.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:35 [32m[INFO] Room 3: Current temp 28.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:35 [32m[INFO] Room 5: Current temp 28.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:36 [32m[INFO] Room 1: Current temp 24.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:36 [32m[INFO] Room 3: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:36 [32m[INFO] Room 5: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:37 [32m[INFO] Room 1: Current temp 24.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:37 [32m[INFO] Room 3: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:37 [32m[INFO] Room 5: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:38 [32m[INFO] Room 1: Current temp 23.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:38 [32m[INFO] Room 3: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:38 [32m[INFO] Room 5: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:39 [32m[INFO] Room 1: Current temp 23.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:39 [32m[INFO] Room 3: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:39 [32m[INFO] Room 5: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:40 [32m[INFO] Room 1: Current temp 22.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:40 [32m[INFO] Room 3: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:40 [32m[INFO] Room 5: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:41 [32m[INFO] Room 1: Current temp 22.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:41 [32m[INFO] Room 3: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:41 [32m[INFO] Room 3 has reached target temperature[0m
+2024/11/30 01:44:41 [32m[INFO] Room 3 service completed and released, no waiting requests[0m
+2024/11/30 01:44:41 [32m[INFO] Room 5: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:41 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:44:41 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:44:42 [32m[INFO] Room 1: Current temp 21.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:42 [32m[INFO] Room 2: Current temp 25.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:42 [32m[INFO] Room 4: Current temp 29.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:43 [32m[INFO] Room 1: Current temp 21.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:43 [32m[INFO] Room 2: Current temp 24.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:43 [32m[INFO] Room 4: Current temp 28.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:44 [32m[INFO] Room 2: Current temp 24.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:44 [32m[INFO] Room 4: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:44 [32m[INFO] Room 1: Current temp 20.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:45 [32m[INFO] Room 1: Current temp 20.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:45 [32m[INFO] Room 2: Current temp 23.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:45 [32m[INFO] Room 4: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:46 [32m[INFO] Room 1: Current temp 19.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:46 [32m[INFO] Room 2: Current temp 23.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:46 [32m[INFO] Room 4: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:47 [32m[INFO] Room 4: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:47 [32m[INFO] Room 1: Current temp 19.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:47 [32m[INFO] Room 2: Current temp 22.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:48 [32m[INFO] Room 1: Current temp 18.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:44:48 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:44:48 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:44:48 [32m[INFO] Room 2: Current temp 22.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:48 [32m[INFO] Room 4: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:49 [32m[INFO] Room 2: Current temp 21.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:49 [32m[INFO] Room 4: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:44:49 [32m[INFO] Room 4 has reached target temperature[0m
+2024/11/30 01:44:49 [32m[INFO] Room 4 service completed and released, no waiting requests[0m
+2024/11/30 01:44:50 [32m[INFO] Room 2: Current temp 21.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:51 [32m[INFO] Room 2: Current temp 20.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:52 [32m[INFO] Room 5: Current temp 25.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:44:52 [32m[INFO] Room 2: Current temp 20.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:53 [32m[INFO] Room 5: Current temp 24.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:44:53 [32m[INFO] Room 2: Current temp 19.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:44:53 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:44:53 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:44:54 [32m[INFO] Room 5: Current temp 24.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:44:55 [32m[INFO] Room 5: Current temp 23.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:44:56 [32m[INFO] Room 5: Current temp 23.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:44:57 [32m[INFO] Room 5: Current temp 22.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:44:57 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:44:57 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:45:02 [32m[INFO] Room 1: Current temp 18.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:03 [32m[INFO] Room 1: Current temp 18.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:04 [32m[INFO] Room 1: Current temp 18.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:05 [32m[INFO] Room 1: Current temp 19.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:06 [32m[INFO] Room 1: Current temp 19.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:07 [32m[INFO] Room 1: Current temp 19.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:08 [32m[INFO] Room 1: Current temp 20.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:09 [32m[INFO] Room 1: Current temp 20.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:10 [32m[INFO] Room 1: Current temp 20.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:11 [32m[INFO] Room 1: Current temp 21.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:12 [32m[INFO] Room 1: Current temp 21.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:13 [32m[INFO] Room 1: Current temp 21.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:14 [32m[INFO] Room 1: Current temp 22.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:15 [32m[INFO] Room 1: Current temp 22.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:16 [32m[INFO] Room 1: Current temp 22.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:17 [32m[INFO] Room 1: Current temp 23.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:18 [32m[INFO] Room 1: Current temp 23.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:19 [32m[INFO] Room 1: Current temp 23.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:20 [32m[INFO] Room 1: Current temp 24.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:21 [32m[INFO] Room 1: Current temp 24.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:22 [32m[INFO] Room 1: Current temp 24.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:22 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:45:22 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:45:22 [32m[INFO] Room 2: Current temp 19.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:22 [32m[INFO] Room 5: Current temp 22.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:23 [32m[INFO] Room 2: Current temp 19.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:23 [32m[INFO] Room 5: Current temp 22.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:24 [32m[INFO] Room 2: Current temp 20.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:24 [32m[INFO] Room 5: Current temp 22.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:25 [32m[INFO] Room 5: Current temp 23.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:25 [32m[INFO] Room 2: Current temp 20.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:26 [32m[INFO] Room 5: Current temp 23.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:26 [32m[INFO] Room 2: Current temp 21.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:27 [32m[INFO] Room 2: Current temp 21.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:27 [32m[INFO] Room 5: Current temp 23.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:28 [32m[INFO] Room 2: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:28 [32m[INFO] Room 5: Current temp 24.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:29 [32m[INFO] Room 2: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:29 [32m[INFO] Room 5: Current temp 24.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:30 [32m[INFO] Room 5: Current temp 24.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:45:30 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:45:30 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:45:30 [32m[INFO] Room 2: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:31 [32m[INFO] Room 2: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:32 [32m[INFO] Room 2: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:33 [32m[INFO] Room 2: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:45:33 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:45:33 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:45:42 [32m[INFO] Room 4: Current temp 25.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:42 [32m[INFO] Room 1: Current temp 25.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:45:43 [32m[INFO] Room 4: Current temp 24.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:43 [32m[INFO] Room 1: Current temp 24.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:45:44 [32m[INFO] Room 4: Current temp 24.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:44 [32m[INFO] Room 1: Current temp 24.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:45:45 [32m[INFO] Room 4: Current temp 24.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:45 [32m[INFO] Room 1: Current temp 23.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:45:46 [32m[INFO] Room 1: Current temp 23.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:45:46 [32m[INFO] Room 4: Current temp 23.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:47 [32m[INFO] Room 4: Current temp 23.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:47 [32m[INFO] Room 1: Current temp 22.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:45:47 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:45:47 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:45:48 [32m[INFO] Room 4: Current temp 23.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:49 [32m[INFO] Room 4: Current temp 22.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:50 [32m[INFO] Room 4: Current temp 22.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:51 [32m[INFO] Room 4: Current temp 22.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:52 [32m[INFO] Room 4: Current temp 21.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:53 [32m[INFO] Room 4: Current temp 21.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:54 [32m[INFO] Room 4: Current temp 21.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:55 [32m[INFO] Room 4: Current temp 20.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:56 [32m[INFO] Room 4: Current temp 20.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:57 [32m[INFO] Room 4: Current temp 20.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:58 [32m[INFO] Room 4: Current temp 19.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:45:59 [32m[INFO] Room 4: Current temp 19.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:46:00 [32m[INFO] Room 4: Current temp 19.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:46:01 [32m[INFO] Room 4: Current temp 18.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:46:02 [32m[INFO] Room 4: Current temp 18.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:46:02 [32m[INFO] Room 4 has reached target temperature[0m
+2024/11/30 01:46:02 [32m[INFO] Room 4 service completed and released, no waiting requests[0m
+2024/11/30 01:46:02 [32m[INFO] Room 2: Current temp 25.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:46:03 [32m[INFO] Room 2: Current temp 24.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:46:04 [32m[INFO] Room 2: Current temp 24.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:46:05 [32m[INFO] Room 2: Current temp 23.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:46:06 [32m[INFO] Room 2: Current temp 23.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:46:07 [32m[INFO] Room 2: Current temp 22.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:46:07 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:46:07 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:46:12 [32m[INFO] Room 5: Current temp 25.0, Target temp 25.0, Speed low[0m
+2024/11/30 01:46:12 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:46:12 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:46:32 [32m[INFO] Room 4: Current temp 18.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:33 [32m[INFO] Room 4: Current temp 19.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:34 [32m[INFO] Room 4: Current temp 20.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:35 [32m[INFO] Room 4: Current temp 21.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:36 [32m[INFO] Room 4: Current temp 22.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:37 [32m[INFO] Room 4: Current temp 23.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:38 [32m[INFO] Room 4: Current temp 24.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:46:38 [32m[INFO] Room 4 has reached target temperature[0m
+2024/11/30 01:46:38 [32m[INFO] Room 4 service completed and released, no waiting requests[0m
+2024/11/30 01:46:42 [32m[INFO] Room 5: Current temp 25.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:43 [32m[INFO] Room 5: Current temp 24.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:44 [32m[INFO] Room 5: Current temp 24.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:45 [32m[INFO] Room 5: Current temp 24.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:46 [32m[INFO] Room 5: Current temp 23.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:47 [32m[INFO] Room 5: Current temp 23.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:48 [32m[INFO] Room 5: Current temp 23.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:49 [32m[INFO] Room 5: Current temp 22.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:50 [32m[INFO] Room 5: Current temp 22.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:51 [32m[INFO] Room 5: Current temp 22.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:52 [32m[INFO] Room 5: Current temp 21.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:53 [32m[INFO] Room 5: Current temp 21.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:54 [32m[INFO] Room 5: Current temp 21.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:55 [32m[INFO] Room 5: Current temp 20.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:56 [32m[INFO] Room 5: Current temp 20.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:46:56 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:46:56 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:47:02 [32m[INFO] Room 3: Current temp 25.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:47:02 [32m[INFO] Room 3 has reached target temperature[0m
+2024/11/30 01:47:02 [32m[INFO] Room 3 service completed and released, no waiting requests[0m
+2024/11/30 01:47:12 [32m[INFO] Room 1: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:12 [32m[INFO] Room 3: Current temp 25.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:13 [32m[INFO] Room 1: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:13 [32m[INFO] Room 3: Current temp 24.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:14 [32m[INFO] Room 1: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:14 [32m[INFO] Room 3: Current temp 24.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:15 [32m[INFO] Room 1: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:15 [32m[INFO] Room 3: Current temp 23.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:16 [32m[INFO] Room 1: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:16 [32m[INFO] Room 3: Current temp 23.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:17 [32m[INFO] Room 1: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:17 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:47:17 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:47:17 [32m[INFO] Room 3: Current temp 22.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:18 [32m[INFO] Room 3: Current temp 22.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:19 [32m[INFO] Room 3: Current temp 21.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:20 [32m[INFO] Room 3: Current temp 21.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:21 [32m[INFO] Room 3: Current temp 20.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:47:21 [32m[INFO] Room 3 has reached target temperature[0m
+2024/11/30 01:47:21 [32m[INFO] Room 3 service completed and released, no waiting requests[0m
+2024/11/30 01:47:22 [32m[INFO] Room 2: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:23 [32m[INFO] Room 2: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:24 [32m[INFO] Room 2: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:25 [32m[INFO] Room 2: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:26 [32m[INFO] Room 2: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:27 [32m[INFO] Room 2: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:47:27 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:47:27 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:49:37 [32m[INFO] Shutting down server...[0m
+2024/11/30 01:49:37 [32m[INFO] Server exiting[0m
+2024/11/30 01:51:58 [32m[INFO] Server is running on port 8080[0m
+2024/11/30 01:52:11 [32m[INFO] Room 1: Current temp 32.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:12 [32m[INFO] Room 1: Current temp 31.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:12 [32m[INFO] Room 2: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:12 [32m[INFO] Room 5: Current temp 35.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:13 [32m[INFO] Room 1: Current temp 31.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:13 [32m[INFO] Room 2: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:13 [32m[INFO] Room 5: Current temp 34.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:14 [32m[INFO] Room 1: Current temp 30.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:14 [32m[INFO] Room 2: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:14 [32m[INFO] Room 5: Current temp 34.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:15 [32m[INFO] Room 1: Current temp 30.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:15 [32m[INFO] Room 2: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:15 [32m[INFO] Room 5: Current temp 33.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:16 [32m[INFO] Room 1: Current temp 29.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:16 [32m[INFO] Room 2: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:16 [32m[INFO] Room 5: Current temp 33.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:17 [32m[INFO] Room 1: Current temp 29.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:17 [32m[INFO] Room 2: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:17 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:52:17 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:52:17 [32m[INFO] Room 5: Current temp 32.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:18 [32m[INFO] Room 1: Current temp 28.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:18 [32m[INFO] Room 5: Current temp 32.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:19 [32m[INFO] Room 1: Current temp 28.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:19 [32m[INFO] Room 5: Current temp 31.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:20 [32m[INFO] Room 1: Current temp 27.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:20 [32m[INFO] Room 5: Current temp 31.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:21 [32m[INFO] Room 1: Current temp 27.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:21 [32m[INFO] Room 5: Current temp 30.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:22 [32m[INFO] Room 1: Current temp 26.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:22 [32m[INFO] Room 3: Current temp 30.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:22 [32m[INFO] Room 5: Current temp 30.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:23 [32m[INFO] Room 3: Current temp 29.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:23 [32m[INFO] Room 5: Current temp 29.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:23 [32m[INFO] Room 1: Current temp 26.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:24 [32m[INFO] Room 1: Current temp 25.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:24 [32m[INFO] Room 3: Current temp 29.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:24 [32m[INFO] Room 5: Current temp 29.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:25 [32m[INFO] Room 1: Current temp 25.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:25 [32m[INFO] Room 3: Current temp 28.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:25 [32m[INFO] Room 5: Current temp 28.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:26 [32m[INFO] Room 1: Current temp 24.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:26 [32m[INFO] Room 3: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:26 [32m[INFO] Room 5: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:27 [32m[INFO] Room 1: Current temp 24.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:27 [32m[INFO] Room 3: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:27 [32m[INFO] Room 5: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:28 [32m[INFO] Room 5: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:28 [32m[INFO] Room 1: Current temp 23.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:28 [32m[INFO] Room 3: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:29 [32m[INFO] Room 1: Current temp 23.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:29 [32m[INFO] Room 3: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:29 [32m[INFO] Room 5: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:30 [32m[INFO] Room 3: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:30 [32m[INFO] Room 5: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:30 [32m[INFO] Room 1: Current temp 22.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:31 [32m[INFO] Room 1: Current temp 22.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:31 [32m[INFO] Room 3: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:31 [32m[INFO] Room 3 has reached target temperature[0m
+2024/11/30 01:52:31 [32m[INFO] Room 3 service completed and released, no waiting requests[0m
+2024/11/30 01:52:31 [32m[INFO] Room 5: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:31 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:52:31 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:52:32 [32m[INFO] Room 1: Current temp 21.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:32 [32m[INFO] Room 2: Current temp 25.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:32 [32m[INFO] Room 4: Current temp 29.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:33 [32m[INFO] Room 4: Current temp 28.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:33 [32m[INFO] Room 1: Current temp 21.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:33 [32m[INFO] Room 2: Current temp 24.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:34 [32m[INFO] Room 1: Current temp 20.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:34 [32m[INFO] Room 2: Current temp 24.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:34 [32m[INFO] Room 4: Current temp 28.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:35 [32m[INFO] Room 1: Current temp 20.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:35 [32m[INFO] Room 2: Current temp 23.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:35 [32m[INFO] Room 4: Current temp 27.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:36 [32m[INFO] Room 1: Current temp 19.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:36 [32m[INFO] Room 2: Current temp 23.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:36 [32m[INFO] Room 4: Current temp 27.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:37 [32m[INFO] Room 4: Current temp 26.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:37 [32m[INFO] Room 1: Current temp 19.0, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:37 [32m[INFO] Room 2: Current temp 22.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:38 [32m[INFO] Room 1: Current temp 18.5, Target temp 18.0, Speed medium[0m
+2024/11/30 01:52:38 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:52:38 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:52:38 [32m[INFO] Room 2: Current temp 22.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:38 [32m[INFO] Room 4: Current temp 26.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:39 [32m[INFO] Room 2: Current temp 21.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:39 [32m[INFO] Room 4: Current temp 25.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:52:39 [32m[INFO] Room 4 has reached target temperature[0m
+2024/11/30 01:52:39 [32m[INFO] Room 4 service completed and released, no waiting requests[0m
+2024/11/30 01:52:40 [32m[INFO] Room 2: Current temp 21.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:41 [32m[INFO] Room 2: Current temp 20.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:42 [32m[INFO] Room 5: Current temp 25.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:52:42 [32m[INFO] Room 2: Current temp 20.0, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:43 [32m[INFO] Room 5: Current temp 24.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:52:43 [32m[INFO] Room 2: Current temp 19.5, Target temp 19.0, Speed medium[0m
+2024/11/30 01:52:43 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:52:43 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:52:44 [32m[INFO] Room 5: Current temp 24.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:52:45 [32m[INFO] Room 5: Current temp 23.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:52:46 [32m[INFO] Room 5: Current temp 23.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:52:47 [32m[INFO] Room 5: Current temp 22.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:52:47 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:52:47 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:52:52 [32m[INFO] Room 1: Current temp 18.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:53 [32m[INFO] Room 1: Current temp 18.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:54 [32m[INFO] Room 1: Current temp 18.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:55 [32m[INFO] Room 1: Current temp 19.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:56 [32m[INFO] Room 1: Current temp 19.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:57 [32m[INFO] Room 1: Current temp 19.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:58 [32m[INFO] Room 1: Current temp 20.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:52:59 [32m[INFO] Room 1: Current temp 20.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:00 [32m[INFO] Room 1: Current temp 20.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:01 [32m[INFO] Room 1: Current temp 21.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:02 [32m[INFO] Room 1: Current temp 21.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:03 [32m[INFO] Room 1: Current temp 21.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:04 [32m[INFO] Room 1: Current temp 22.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:05 [32m[INFO] Room 1: Current temp 22.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:06 [32m[INFO] Room 1: Current temp 22.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:07 [32m[INFO] Room 1: Current temp 23.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:08 [32m[INFO] Room 1: Current temp 23.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:09 [32m[INFO] Room 1: Current temp 23.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:10 [32m[INFO] Room 1: Current temp 24.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:11 [32m[INFO] Room 1: Current temp 24.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:12 [32m[INFO] Room 1: Current temp 24.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:12 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:53:12 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:53:12 [32m[INFO] Room 2: Current temp 19.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:12 [32m[INFO] Room 5: Current temp 22.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:13 [32m[INFO] Room 2: Current temp 19.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:13 [32m[INFO] Room 5: Current temp 22.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:14 [32m[INFO] Room 2: Current temp 20.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:14 [32m[INFO] Room 5: Current temp 22.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:15 [32m[INFO] Room 2: Current temp 20.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:15 [32m[INFO] Room 5: Current temp 23.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:16 [32m[INFO] Room 2: Current temp 21.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:16 [32m[INFO] Room 5: Current temp 23.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:17 [32m[INFO] Room 2: Current temp 21.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:17 [32m[INFO] Room 5: Current temp 23.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:18 [32m[INFO] Room 2: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:18 [32m[INFO] Room 5: Current temp 24.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:19 [32m[INFO] Room 2: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:19 [32m[INFO] Room 5: Current temp 24.3, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:20 [32m[INFO] Room 2: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:20 [32m[INFO] Room 5: Current temp 24.7, Target temp 25.0, Speed high[0m
+2024/11/30 01:53:20 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:53:20 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:53:21 [32m[INFO] Room 2: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:22 [32m[INFO] Room 2: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:23 [32m[INFO] Room 2: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:53:23 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:53:23 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:53:32 [32m[INFO] Room 4: Current temp 25.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:32 [32m[INFO] Room 1: Current temp 25.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:33 [32m[INFO] Room 1: Current temp 24.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:33 [32m[INFO] Room 4: Current temp 24.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:34 [32m[INFO] Room 1: Current temp 24.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:34 [32m[INFO] Room 4: Current temp 24.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:35 [32m[INFO] Room 4: Current temp 24.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:35 [32m[INFO] Room 1: Current temp 23.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:36 [32m[INFO] Room 1: Current temp 23.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:36 [32m[INFO] Room 4: Current temp 23.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:37 [32m[INFO] Room 4: Current temp 23.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:37 [32m[INFO] Room 1: Current temp 22.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:37 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:53:37 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:53:38 [32m[INFO] Room 4: Current temp 23.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:39 [32m[INFO] Room 4: Current temp 22.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:40 [32m[INFO] Room 4: Current temp 22.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:41 [32m[INFO] Room 4: Current temp 22.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:42 [32m[INFO] Room 4: Current temp 21.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:43 [32m[INFO] Room 4: Current temp 21.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:44 [32m[INFO] Room 4: Current temp 21.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:45 [32m[INFO] Room 4: Current temp 20.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:46 [32m[INFO] Room 4: Current temp 20.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:47 [32m[INFO] Room 4: Current temp 20.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:48 [32m[INFO] Room 4: Current temp 19.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:49 [32m[INFO] Room 4: Current temp 19.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:50 [32m[INFO] Room 4: Current temp 19.0, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:51 [32m[INFO] Room 4: Current temp 18.7, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:52 [32m[INFO] Room 4: Current temp 18.3, Target temp 18.0, Speed high[0m
+2024/11/30 01:53:52 [32m[INFO] Room 4 has reached target temperature[0m
+2024/11/30 01:53:52 [32m[INFO] Room 4 service completed and released, no waiting requests[0m
+2024/11/30 01:53:53 [32m[INFO] Room 2: Current temp 25.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:54 [32m[INFO] Room 2: Current temp 24.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:55 [32m[INFO] Room 2: Current temp 24.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:56 [32m[INFO] Room 2: Current temp 23.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:57 [32m[INFO] Room 2: Current temp 23.0, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:58 [32m[INFO] Room 2: Current temp 22.5, Target temp 22.0, Speed medium[0m
+2024/11/30 01:53:58 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:53:58 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:54:03 [32m[INFO] Room 5: Current temp 25.0, Target temp 25.0, Speed low[0m
+2024/11/30 01:54:03 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:54:03 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:54:23 [32m[INFO] Room 4: Current temp 18.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:24 [32m[INFO] Room 4: Current temp 19.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:25 [32m[INFO] Room 4: Current temp 20.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:26 [32m[INFO] Room 4: Current temp 21.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:27 [32m[INFO] Room 4: Current temp 22.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:28 [32m[INFO] Room 4: Current temp 23.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:29 [32m[INFO] Room 4: Current temp 24.0, Target temp 24.0, Speed low[0m
+2024/11/30 01:54:29 [32m[INFO] Room 4 has reached target temperature[0m
+2024/11/30 01:54:29 [32m[INFO] Room 4 service completed and released, no waiting requests[0m
+2024/11/30 01:54:33 [32m[INFO] Room 5: Current temp 25.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:34 [32m[INFO] Room 5: Current temp 24.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:35 [32m[INFO] Room 5: Current temp 24.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:36 [32m[INFO] Room 5: Current temp 24.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:37 [32m[INFO] Room 5: Current temp 23.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:38 [32m[INFO] Room 5: Current temp 23.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:39 [32m[INFO] Room 5: Current temp 23.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:40 [32m[INFO] Room 5: Current temp 22.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:41 [32m[INFO] Room 5: Current temp 22.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:42 [32m[INFO] Room 5: Current temp 22.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:43 [32m[INFO] Room 5: Current temp 21.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:44 [32m[INFO] Room 5: Current temp 21.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:45 [32m[INFO] Room 5: Current temp 21.0, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:46 [32m[INFO] Room 5: Current temp 20.7, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:47 [32m[INFO] Room 5: Current temp 20.3, Target temp 20.0, Speed high[0m
+2024/11/30 01:54:47 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:54:47 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 01:54:53 [32m[INFO] Room 3: Current temp 25.0, Target temp 25.0, Speed high[0m
+2024/11/30 01:54:53 [32m[INFO] Room 3 has reached target temperature[0m
+2024/11/30 01:54:53 [32m[INFO] Room 3 service completed and released, no waiting requests[0m
+2024/11/30 01:55:03 [32m[INFO] Room 1: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:03 [32m[INFO] Room 3: Current temp 25.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:04 [32m[INFO] Room 1: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:04 [32m[INFO] Room 3: Current temp 24.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:05 [32m[INFO] Room 1: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:05 [32m[INFO] Room 3: Current temp 24.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:06 [32m[INFO] Room 1: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:06 [32m[INFO] Room 3: Current temp 23.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:07 [32m[INFO] Room 1: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:07 [32m[INFO] Room 3: Current temp 23.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:08 [32m[INFO] Room 1: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:08 [32m[INFO] Room 1 has reached target temperature[0m
+2024/11/30 01:55:08 [32m[INFO] Room 1 service completed and released, no waiting requests[0m
+2024/11/30 01:55:08 [32m[INFO] Room 3: Current temp 22.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:09 [32m[INFO] Room 3: Current temp 22.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:10 [32m[INFO] Room 3: Current temp 21.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:11 [32m[INFO] Room 3: Current temp 21.0, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:12 [32m[INFO] Room 3: Current temp 20.5, Target temp 20.0, Speed medium[0m
+2024/11/30 01:55:12 [32m[INFO] Room 3 has reached target temperature[0m
+2024/11/30 01:55:12 [32m[INFO] Room 3 service completed and released, no waiting requests[0m
+2024/11/30 01:55:13 [32m[INFO] Room 2: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:14 [32m[INFO] Room 2: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:15 [32m[INFO] Room 2: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:16 [32m[INFO] Room 2: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:17 [32m[INFO] Room 2: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:18 [32m[INFO] Room 2: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:18 [32m[INFO] Room 2 has reached target temperature[0m
+2024/11/30 01:55:18 [32m[INFO] Room 2 service completed and released, no waiting requests[0m
+2024/11/30 01:55:23 [32m[INFO] Room 5: Current temp 20.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:24 [32m[INFO] Room 5: Current temp 20.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:25 [32m[INFO] Room 5: Current temp 21.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:26 [32m[INFO] Room 5: Current temp 21.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:27 [32m[INFO] Room 5: Current temp 22.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:28 [32m[INFO] Room 5: Current temp 22.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:29 [32m[INFO] Room 5: Current temp 23.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:30 [32m[INFO] Room 5: Current temp 23.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:31 [32m[INFO] Room 5: Current temp 24.0, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:32 [32m[INFO] Room 5: Current temp 24.5, Target temp 25.0, Speed medium[0m
+2024/11/30 01:55:32 [32m[INFO] Room 5 has reached target temperature[0m
+2024/11/30 01:55:32 [32m[INFO] Room 5 service completed and released, no waiting requests[0m
+2024/11/30 02:17:30 [32m[INFO] Shutting down server...[0m
+2024/11/30 02:17:30 [32m[INFO] Server exiting[0m

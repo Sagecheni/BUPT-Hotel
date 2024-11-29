@@ -83,29 +83,29 @@ func InitRooms() {
 	if count == 0 {
 		rooms := []RoomInfo{
 			{
-				RoomID:      101,
+				RoomID:      1,
 				State:       0, // 0表示空闲
-				CurrentTemp: 26.0,
+				CurrentTemp: 32.0,
 			},
 			{
-				RoomID:      102,
+				RoomID:      2,
 				State:       0,
-				CurrentTemp: 26.0,
+				CurrentTemp: 28.0,
 			},
 			{
-				RoomID:      103,
+				RoomID:      3,
 				State:       0,
-				CurrentTemp: 26.0,
+				CurrentTemp: 30.0,
 			},
 			{
-				RoomID:      201,
+				RoomID:      4,
 				State:       0,
-				CurrentTemp: 26.0,
+				CurrentTemp: 29.0,
 			},
 			{
-				RoomID:      202,
+				RoomID:      5,
 				State:       0,
-				CurrentTemp: 26.0,
+				CurrentTemp: 35.0,
 			},
 		}
 
