@@ -12,6 +12,7 @@
 - [2024-11-29]完成了房间目标温度/风速的接口设计(ac_handler)，并完成调度器的相关测试，还有诸多小细节的改进，比如说logger等此外，在ApiFox写了一个测试样例(制冷)的自动化测试。
 
 # 后端架构
+```
 backend/
 ├── api/
 │   └── router.go
@@ -42,7 +43,8 @@ backend/
     └── service/
         ├── monitor.go
         └── service.go
-
+```
+说明：
 - /cmd - 项目的启动文件
 - /internal - 私有的代码库
     - /db - 数据库相关
