@@ -28,12 +28,12 @@ type DefaultConfig struct {
 
 const (
 	// 温度变化速率 (每秒变化的温度)
-	TempChangeRateLow    = 1.0      // 低速温度变化率
-	TempChangeRateMedium = 0.5      // 中速温度变化率
-	TempChangeRateHigh   = 0.333333 // 高速温度变化率
+	TempChangeRateLow    = 0.03333 // 低速温度变化率
+	TempChangeRateMedium = 0.05    // 中速温度变化率
+	TempChangeRateHigh   = 0.1     // 高速温度变化率
 )
 
-const tempThreshold = 0.5
+const tempThreshold = 0.1
 
 // 速度与温度变化率的映射
 var speedTempRate = map[string]float32{
@@ -124,6 +124,14 @@ type Scheduler struct {
 	stopChan       chan struct{}
 	roomRepo       *db.RoomRepository
 	defaultConfig  DefaultConfig // 默认配置
+	enableLogging  bool
+}
+
+// 添加控制日志的方法
+func (s *Scheduler) SetLogging(enable bool) {
+	s.mu.Lock()
+	s.enableLogging = enable
+	s.mu.Unlock()
 }
 
 func NewScheduler() *Scheduler {
@@ -141,6 +149,7 @@ func NewScheduler() *Scheduler {
 			DefaultSpeed: DefaultSpeed,
 			DefaultTemp:  DefaultTemp,
 		},
+		enableLogging: false,
 	}
 
 	go s.monitorServiceStatus()
@@ -244,11 +253,15 @@ func (s *Scheduler) checkWaitQueue() {
 		return
 	}
 	if s.waitQueue.Len() > 0 {
-		logger.Info("Current wait queue length: %d", s.waitQueue.Len())
+		if s.enableLogging {
+			logger.Info("Current wait queue length: %d", s.waitQueue.Len())
+		}
 		// 打印等待队列中的房间信息
-		for _, item := range *s.waitQueue {
-			logger.Info("Waiting Room %d: Speed %s, Wait duration %.1f",
-				item.roomID, item.waitObj.Speed, item.waitObj.WaitDuration)
+		if s.enableLogging {
+			for _, item := range *s.waitQueue {
+				logger.Info("Waiting Room %d: Speed %s, Wait duration %.1f",
+					item.roomID, item.waitObj.Speed, item.waitObj.WaitDuration)
+			}
 		}
 	}
 
@@ -333,8 +346,10 @@ func (s *Scheduler) updateServiceStatus() {
 		oldTemp := service.CurrentTemp
 
 		//日志记录
-		logger.Info("Room %d: Current temp %.1f, Target temp %.1f, Speed %s",
-			roomID, service.CurrentTemp, service.TargetTemp, service.Speed)
+		if s.enableLogging {
+			logger.Info("Room %d: Current temp %.1f, Target temp %.1f, Speed %s",
+				roomID, service.CurrentTemp, service.TargetTemp, service.Speed)
+		}
 		if math.Abs(float64(tempDiff)) > tempThreshold {
 			if tempDiff > 0 {
 				service.CurrentTemp += tempRate
@@ -346,7 +361,9 @@ func (s *Scheduler) updateServiceStatus() {
 			}
 		} else {
 			// 温度达到目标值
-			logger.Info("Room %d has reached target temperature", roomID)
+			if s.enableLogging {
+				logger.Info("Room %d has reached target temperature", roomID)
+			}
 			if oldTemp != service.TargetTemp {
 				service.CurrentTemp = service.TargetTemp
 				if err := s.roomRepo.UpdateTemperature(roomID, service.CurrentTemp); err != nil {
@@ -378,7 +395,9 @@ func (s *Scheduler) updateServiceStatus() {
 				}
 				delete(s.serviceQueue, roomID)
 				s.currentService--
-				logger.Info("Room %d service completed and released, no waiting requests", roomID)
+				if s.enableLogging {
+					logger.Info("Room %d service completed and released, no waiting requests", roomID)
+				}
 			}
 		}
 	}
@@ -497,4 +516,34 @@ func (s *Scheduler) SetDefaultConfig(config DefaultConfig) error {
 
 func (s *Scheduler) Stop() {
 	close(s.stopChan)
+}
+
+// RemoveRoom 从调度器中移除指定房间的所有请求
+func (s *Scheduler) RemoveRoom(roomID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 从服务队列中移除
+	if _, exists := s.serviceQueue[roomID]; exists {
+		delete(s.serviceQueue, roomID)
+		s.currentService--
+		logger.Info("Room %d removed from service queue", roomID)
+	}
+
+	// 从等待队列中移除
+	if item, exists := s.waitQueueIndex[roomID]; exists {
+		heap.Remove(s.waitQueue, item.indexHeap)
+		delete(s.waitQueueIndex, roomID)
+		logger.Info("Room %d removed from wait queue", roomID)
+	}
+
+	// 尝试从等待队列中选择下一个请求
+	if s.currentService < MaxServices && s.waitQueue.Len() > 0 {
+		item := heap.Pop(s.waitQueue).(*PriorityItem)
+		wait := item.waitObj
+		delete(s.waitQueueIndex, wait.RoomID)
+
+		s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp)
+		logger.Info("Room %d promoted from wait queue to service queue", wait.RoomID)
+	}
 }

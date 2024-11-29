@@ -153,6 +153,7 @@ func (h *ACHandler) PowerOff(c *gin.Context) {
 	}
 
 	// 关闭空调并清理调度队列
+	h.scheduler.RemoveRoom(req.RoomID)
 	err = h.roomRepo.PowerOffAC(req.RoomID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
