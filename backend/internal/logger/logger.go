@@ -23,7 +23,6 @@ const (
 
 var (
 	defaultLogger *Logger
-	once          sync.Once
 
 	// 预定义带颜色的打印函数
 	debugPrintf = color.New(color.FgCyan).SprintfFunc()
