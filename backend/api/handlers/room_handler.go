@@ -18,7 +18,6 @@ type CheckOutRequest struct {
 	RoomID int `json:"room_id" binding:"required"`
 }
 
-
 type RoomHandler struct {
 	roomRepo *db.RoomRepository
 }
@@ -114,7 +113,7 @@ func (h *RoomHandler) CheckOut(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"msg":    "退房成功",
+		"msg": "退房成功",
 	})
 
 }

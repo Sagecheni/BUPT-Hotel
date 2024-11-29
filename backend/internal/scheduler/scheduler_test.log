@@ -1,0 +1,67 @@
+2024/11/29 15:28:22 [INFO] === Starting TestPriorityPreemption ===
+2024/11/29 15:28:22 [DEBUG] Handling request for Room 201 with speed low, target temperature 25.0
+2024/11/29 15:28:22 [DEBUG] 
+=== Before handling request ===
+Service Queue:
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Direct assignment available, adding Room 201 to service queue
+2024/11/29 15:28:22 [DEBUG] 
+=== After direct assignment ===
+Service Queue:
+Room 201: Speed=low, Duration=0.00s, Target=25.0°C
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Handling request for Room 202 with speed low, target temperature 25.0
+2024/11/29 15:28:22 [DEBUG] 
+=== Before handling request ===
+Service Queue:
+Room 201: Speed=low, Duration=0.00s, Target=25.0°C
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Direct assignment available, adding Room 202 to service queue
+2024/11/29 15:28:22 [DEBUG] 
+=== After direct assignment ===
+Service Queue:
+Room 201: Speed=low, Duration=0.00s, Target=25.0°C
+Room 202: Speed=low, Duration=0.00s, Target=25.0°C
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Handling request for Room 203 with speed low, target temperature 25.0
+2024/11/29 15:28:22 [DEBUG] 
+=== Before handling request ===
+Service Queue:
+Room 201: Speed=low, Duration=0.00s, Target=25.0°C
+Room 202: Speed=low, Duration=0.00s, Target=25.0°C
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Direct assignment available, adding Room 203 to service queue
+2024/11/29 15:28:22 [DEBUG] 
+=== After direct assignment ===
+Service Queue:
+Room 201: Speed=low, Duration=0.00s, Target=25.0°C
+Room 202: Speed=low, Duration=0.00s, Target=25.0°C
+Room 203: Speed=low, Duration=0.00s, Target=25.0°C
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Adding high priority request
+2024/11/29 15:28:22 [DEBUG] Handling request for Room 204 with speed high, target temperature 23.0
+2024/11/29 15:28:22 [DEBUG] 
+=== Before handling request ===
+Service Queue:
+Room 203: Speed=low, Duration=0.00s, Target=25.0°C
+Room 201: Speed=low, Duration=0.00s, Target=25.0°C
+Room 202: Speed=low, Duration=0.00s, Target=25.0°C
+
+Wait Queue:
+2024/11/29 15:28:22 [DEBUG] Starting scheduling for Room 204 with priority 3
+2024/11/29 15:28:22 [INFO] Selected Room 201 as victim for preemption
+2024/11/29 15:28:22 [DEBUG] 
+=== After scheduling ===
+Service Queue:
+Room 202: Speed=low, Duration=0.00s, Target=25.0°C
+Room 203: Speed=low, Duration=0.00s, Target=25.0°C
+Room 204: Speed=high, Duration=0.00s, Target=23.0°C
+
+Wait Queue:
+Room 201: Speed=low, WaitTime=0.00s, Target=0.0°C
