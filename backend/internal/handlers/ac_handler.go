@@ -4,7 +4,7 @@ package handlers
 
 import (
 	"backend/internal/db"
-	"backend/internal/scheduler"
+	"backend/internal/service"
 	"fmt"
 	"net/http"
 
@@ -25,7 +25,7 @@ type SetModeRequest struct {
 // 空调设置
 type ACHandler struct {
 	roomRepo  *db.RoomRepository
-	scheduler *scheduler.Scheduler
+	scheduler *service.Scheduler
 }
 
 // 开机请求
@@ -39,7 +39,7 @@ type AirConditionRequest struct {
 	Speed      *string  `json:"speed,omitempty"`
 }
 
-func NewACHandler(scheduler *scheduler.Scheduler) *ACHandler {
+func NewACHandler(scheduler *service.Scheduler) *ACHandler {
 	return &ACHandler{
 		roomRepo:  db.NewRoomRepository(),
 		scheduler: scheduler,
@@ -246,8 +246,8 @@ func (h *ACHandler) SetAirCondition(c *gin.Context) {
 		return
 	}
 
-	targetTemp := scheduler.DefaultTemp
-	speed := scheduler.DefaultSpeed
+	targetTemp := service.DefaultTemp
+	speed := service.DefaultSpeed
 
 	// 如果请求中包含了温度，使用请求的温度
 	if req.TargetTemp != nil {
@@ -269,9 +269,9 @@ func (h *ACHandler) SetAirCondition(c *gin.Context) {
 	if req.Speed != nil {
 		speed = *req.Speed
 		// 验证风速值
-		if speed != scheduler.SpeedLow &&
-			speed != scheduler.SpeedMedium &&
-			speed != scheduler.SpeedHigh {
+		if speed != service.SpeedLow &&
+			speed != service.SpeedMedium &&
+			speed != service.SpeedHigh {
 			c.JSON(http.StatusBadRequest, Response{
 				Code: 400,
 				Msg:  "无效的风速值",
@@ -383,7 +383,7 @@ func (h *ACHandler) SetDefaults(c *gin.Context) {
 		return
 	}
 
-	config := scheduler.DefaultConfig{
+	config := service.DefaultConfig{
 		DefaultSpeed: req.DefaultSpeed,
 		DefaultTemp:  req.DefaultTemp,
 	}

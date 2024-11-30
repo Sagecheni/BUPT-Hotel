@@ -4,18 +4,17 @@ package service
 
 import (
 	"backend/internal/logger"
-	"backend/internal/scheduler"
 	"time"
 )
 
 type MonitorService struct {
-	scheduler    *scheduler.Scheduler
+	scheduler    *Scheduler
 	stopChan     chan struct{}
 	tempTicker   *time.Ticker
 	queuesTicker *time.Ticker
 }
 
-func NewMonitorService(scheduler *scheduler.Scheduler) *MonitorService {
+func NewMonitorService(scheduler *Scheduler) *MonitorService {
 	return &MonitorService{
 		scheduler: scheduler,
 		stopChan:  make(chan struct{}),

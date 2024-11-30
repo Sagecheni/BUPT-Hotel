@@ -3,13 +3,12 @@
 package service
 
 import (
-	"backend/internal/scheduler"
 	"sync"
 	"time"
 )
 
 var (
-	schedulerService *scheduler.Scheduler
+	schedulerService *Scheduler
 	monitorService   *MonitorService
 	once             sync.Once
 )
@@ -17,7 +16,7 @@ var (
 // InitServices 初始化所有服务
 func InitServices() {
 	once.Do(func() {
-		schedulerService = scheduler.NewScheduler()
+		schedulerService = NewScheduler()
 		schedulerService.SetLogging(false) // 关闭scheduler的日志
 
 		monitorService = NewMonitorService(schedulerService)
@@ -28,7 +27,7 @@ func InitServices() {
 }
 
 // GetScheduler 获取调度器实例
-func GetScheduler() *scheduler.Scheduler {
+func GetScheduler() *Scheduler {
 	return schedulerService
 }
 

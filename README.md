@@ -13,44 +13,43 @@
 
 # 后端架构
 ```
-backend/
-├── api/
+backend
+├── api
 │   └── router.go
-├── cmd/
+├── cmd
 │   ├── hotel.db
 │   ├── launch.sh
 │   ├── logs
 │   │   └── 2024-11-30.log
 │   └── main.go
-├── docs/
+├── docs
 ├── go.mod
 ├── go.sum
-└── internal/
-    ├── db/
-    │   ├── init.go
-    │   ├── model.go
-    │   └── room_repository.go
-    ├── handlers/
-    │   ├── ac_handler.go
-    │   ├── common.go
-    │   └── room_handler.go
-    ├── logger/
-    │   └── logger.go
-    ├── scheduler/
-    │   ├── old_scheduler
-    │   ├── scheduler.go
-    │   └── scheduler_test.go
-    └── service/
-        ├── monitor.go
-        └── service.go
+├── internal
+│   ├── db
+│   │   ├── init.go
+│   │   ├── model.go
+│   │   └── room_repository.go
+│   ├── handlers
+│   │   ├── ac_handler.go
+│   │   ├── common.go
+│   │   └── room_handler.go
+│   ├── logger
+│   │   └── logger.go
+│   └── service
+│       ├── monitor.go
+│       ├── old_scheduler
+│       ├── scheduler.go
+│       ├── scheduler_test.go
+│       └── service.go
+└── tests
 ```
 说明：
 - /cmd - 项目的启动文件
 - /internal - 私有的代码库
     - /db - 数据库相关
     - /handler - 接口设计相关
-    - /scheduler - 调度器相关
-    - /service - 服务层(监视器，调度器实际上应该放这里)
+    - /service - 服务层(监视器，调度器所在)
 - /api - api的相关定义
 - /docs - 文档所在
 
