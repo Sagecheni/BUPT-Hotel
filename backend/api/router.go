@@ -3,12 +3,14 @@ package api
 import (
 	"backend/internal/handlers"
 	"backend/internal/service"
+	"backend/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+	r.Use(middleware.Cors())
 	acHandler := handlers.NewACHandler(service.GetScheduler())
 	roomHandler := handlers.NewRoomHandler()
 	billingHandler := handlers.NewBillingHandler()
@@ -24,6 +26,9 @@ func SetupRouter() *gin.Engine {
 		api.GET("/status", acHandler.GetSchedulerStatus)       // 获取调度器状态
 		api.GET("/:roomId/bill", billingHandler.GetBill)       // 获取账单
 		api.GET("/:roomId/details", billingHandler.GetDetails) // 获取详单
+		api.POST("/changetemp", acHandler.ChangeTemperature)   // 修改温度
+		api.POST("/changespeed", acHandler.ChangeSpeed)        // 修改风速
+		api.POST("/requeststate", acHandler.RoomStatus)        // 查询房间状态
 	}
 	return r
 }

@@ -128,7 +128,7 @@ type Scheduler struct {
 	billingService *BillingService
 }
 
-// 添加控制日志的方法
+// 控制日志开关
 func (s *Scheduler) SetLogging(enable bool) {
 	s.mu.Lock()
 	s.enableLogging = enable
