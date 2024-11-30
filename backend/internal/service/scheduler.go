@@ -125,6 +125,7 @@ type Scheduler struct {
 	roomRepo       *db.RoomRepository
 	defaultConfig  DefaultConfig // 默认配置
 	enableLogging  bool
+	billingService *BillingService
 }
 
 // 添加控制日志的方法
@@ -149,7 +150,8 @@ func NewScheduler() *Scheduler {
 			DefaultSpeed: DefaultSpeed,
 			DefaultTemp:  DefaultTemp,
 		},
-		enableLogging: false,
+		enableLogging:  false,
+		billingService: NewBillingService(),
 	}
 
 	go s.monitorServiceStatus()
@@ -180,8 +182,16 @@ func (s *Scheduler) HandleRequest(roomID int, speed string, targetTemp, currentT
 	if service, exists := s.serviceQueue[roomID]; exists {
 		s.mu.RUnlock()
 		s.mu.Lock()
-		service.Speed = speed
-		service.TargetTemp = targetTemp
+		if service.Speed != speed {
+			// 先记录当前服务的详单
+			if err := s.billingService.CreateDetail(roomID, service); err != nil {
+				logger.Error("创建风速切换详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+			}
+			// 更新服务对象的开始时间和风速
+			service.StartTime = time.Now()
+			service.Speed = speed
+			service.TargetTemp = targetTemp
+		}
 		s.mu.Unlock()
 		return true, nil
 	}
@@ -350,6 +360,7 @@ func (s *Scheduler) updateServiceStatus() {
 			logger.Info("Room %d: Current temp %.1f, Target temp %.1f, Speed %s",
 				roomID, service.CurrentTemp, service.TargetTemp, service.Speed)
 		}
+		// 更新温度
 		if math.Abs(float64(tempDiff)) > tempThreshold {
 			if tempDiff > 0 {
 				service.CurrentTemp += tempRate
@@ -360,7 +371,11 @@ func (s *Scheduler) updateServiceStatus() {
 				logger.Error("Failed to update room %d temperature: %v", roomID, err)
 			}
 		} else {
-			// 温度达到目标值
+			// 温度达到目标值，服务完成
+			if err := s.billingService.CreateDetail(roomID, service); err != nil {
+				logger.Error("创建服务完成详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+			}
+			//日志记录
 			if s.enableLogging {
 				logger.Info("Room %d has reached target temperature", roomID)
 			}
@@ -524,7 +539,11 @@ func (s *Scheduler) RemoveRoom(roomID int) {
 	defer s.mu.Unlock()
 
 	// 从服务队列中移除
-	if _, exists := s.serviceQueue[roomID]; exists {
+	if service, exists := s.serviceQueue[roomID]; exists {
+		//当服务完成或者被中断的时候创建详单数据
+		if err := s.billingService.CreateDetail(roomID, service); err != nil {
+			logger.Error("创建最终详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+		}
 		delete(s.serviceQueue, roomID)
 		s.currentService--
 		logger.Info("Room %d removed from service queue", roomID)

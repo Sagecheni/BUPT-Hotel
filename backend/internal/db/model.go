@@ -29,15 +29,16 @@ type OperationLog struct {
 
 // 详单表
 type Detail struct {
-	ID        int `gorm:"primary_key"`
-	RoomID    int
-	QueryTime time.Time `gorm:"type:datetime"`
-	StartTime time.Time `gorm:"type:datetime"`
-	EndTime   time.Time `gorm:"type:datetime"`
-	ServeTime float32   `gorm:"type:float(7, 2)"`
-	Speed     string    `gorm:"type:varchar(255)"`
-	Cost      float32   `gorm:"type:float(7, 2)"`
-	Rate      float32   `gorm:"type:float(5, 2)"`
+	ID         int `gorm:"primary_key"`
+	RoomID     int
+	QueryTime  time.Time `gorm:"type:datetime"`
+	StartTime  time.Time `gorm:"type:datetime"`
+	EndTime    time.Time `gorm:"type:datetime"`
+	ServeTime  float32   `gorm:"type:float(7, 2)"`
+	Speed      string    `gorm:"type:varchar(255)"`
+	Cost       float32   `gorm:"type:float(7, 2)"`
+	Rate       float32   `gorm:"type:float(5, 2)"`
+	TempChange float32   `gorm:"type:float(5, 2)"`
 }
 
 // 用户表
