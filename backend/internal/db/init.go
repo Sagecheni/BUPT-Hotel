@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -13,20 +12,27 @@ import (
 
 const DB_NAME = "hotel.db"
 
-var Init bool
-var SQLDB *sql.DB
-var DB *gorm.DB
+var (
+	Init  bool
+	SQLDB *sql.DB
+	DB    *gorm.DB
+)
 
 func Init_DB() {
+	// 检查数据库是否存在
 	if _, err := os.Stat(DB_NAME); os.IsNotExist(err) {
 		Init = true
 	} else {
-		fmt.Println("database already exists")
+		log.Println("database already exists")
 	}
+
+	// 打开数据库连接
 	db, err := gorm.Open(sqlite.Open(DB_NAME), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
+
+	// 配置连接池
 	sqlDB, err := db.DB()
 	if err != nil {
 		panic("failed to get db")
@@ -34,22 +40,82 @@ func Init_DB() {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(10)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+
 	DB = db
 	SQLDB = sqlDB
-	err = db.AutoMigrate(&RoomInfo{}, &OperationLog{}, &Detail{}, &User{}, &SchedulerBoard{})
+
+	// 记录旧表是否存在
+	hasOldDetailTable := db.Migrator().HasTable("details")
+
+	// 自动迁移
+	err = db.AutoMigrate(
+		&RoomInfo{},
+		&User{},
+		&ServiceDetail{},
+		&ServiceQueue{},
+	)
 	if err != nil {
 		panic("failed to migrate database")
 	}
+
 	if Init {
 		InitBaseData()
 		InitRooms()
+	} else if hasOldDetailTable {
+		// 执行数据迁移
+		MigrateDetailData(db)
+	}
+}
+
+// MigrateDetailData 迁移旧的详单数据到新的服务详情表
+func MigrateDetailData(db *gorm.DB) {
+	var oldDetails []struct {
+		ID         int
+		RoomID     int
+		QueryTime  time.Time
+		StartTime  time.Time
+		EndTime    time.Time
+		ServeTime  float32
+		Speed      string
+		Cost       float32
+		Rate       float32
+		TempChange float32
 	}
 
+	if err := db.Table("details").Find(&oldDetails).Error; err != nil {
+		log.Printf("获取旧详单数据失败: %v", err)
+		return
+	}
+
+	// 开始迁移数据
+	for _, old := range oldDetails {
+		serviceDetail := &ServiceDetail{
+			RoomID:          old.RoomID,
+			StartTime:       old.StartTime,
+			EndTime:         old.EndTime,
+			ServiceDuration: old.ServeTime,
+			Speed:           old.Speed,
+			ServiceState:    "completed",
+			InitialTemp:     0, // 旧数据中没有这个信息
+			FinalTemp:       0, // 旧数据中没有这个信息
+			TotalFee:        old.Cost,
+		}
+
+		if err := db.Create(serviceDetail).Error; err != nil {
+			log.Printf("迁移详单数据失败, ID: %d, 错误: %v", old.ID, err)
+			continue
+		}
+	}
+
+	// 迁移完成后删除旧表
+	if err := db.Migrator().DropTable("details"); err != nil {
+		log.Printf("删除旧详单表失败: %v", err)
+	}
 }
 
 func InitBaseData() {
 	var adminCount int64
-	DB.Model(&User{}).Where("identity = ?", "admin").Count(&adminCount)
+	DB.Model(&User{}).Where("identity = ?", "manager").Count(&adminCount)
 
 	if adminCount == 0 {
 		admin := User{
@@ -73,10 +139,6 @@ func InitBaseData() {
 	}
 }
 
-func GetDB() *gorm.DB {
-	return DB
-}
-
 func InitRooms() {
 	var count int64
 	DB.Model(&RoomInfo{}).Count(&count)
@@ -84,7 +146,7 @@ func InitRooms() {
 		rooms := []RoomInfo{
 			{
 				RoomID:      1,
-				State:       0, // 0表示空闲
+				State:       0,
 				CurrentTemp: 32.0,
 			},
 			{

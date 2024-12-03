@@ -17,16 +17,6 @@ type RoomInfo struct {
 	TargetTemp   float32 `gorm:"type:float(5, 2)"`
 }
 
-// 操作日志表
-type OperationLog struct {
-	ID     int `gorm:"primaryKey"`
-	RoomID int
-	OpTime time.Time `gorm:"type:datetime"`
-	OpType int
-	Old    string `gorm:"type:varchar(255)"`
-	New    string `gorm:"type:varchar(255)"`
-}
-
 // 详单表
 type Detail struct {
 	ID         int `gorm:"primary_key"`
@@ -41,18 +31,44 @@ type Detail struct {
 	TempChange float32   `gorm:"type:float(5, 2)"`
 }
 
+// ServiceDetail 服务详情表 - 记录每次服务的完整生命周期
+type ServiceDetail struct {
+	ID              int `gorm:"primaryKey;autoIncrement"`
+	RoomID          int
+	StartTime       time.Time `gorm:"type:datetime;index"`
+	EndTime         time.Time `gorm:"type:datetime;index"`
+	InitialTemp     float32   `gorm:"type:float(5,2)"`
+	TargetTemp      float32   `gorm:"type:float(5,2)"`
+	FinalTemp       float32   `gorm:"type:float(5,2)"`
+	Speed           string    `gorm:"type:varchar(20)"`
+	ServiceState    string    `gorm:"type:varchar(20)"` // active, paused, completed, preempted
+	PreemptedBy     *int      // 被哪个房间抢占
+	WaitDuration    float32   `gorm:"type:float(7,2)"` // 等待时长(秒)
+	ServiceDuration float32   `gorm:"type:float(7,2)"` // 服务时长(秒)
+	Cost            float32   `gorm:"type:float(7,2)"` // 当前费用
+	TotalFee        float32   `gorm:"type:float(7,2)"` // 总费用
+	CreatedAt       time.Time `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime"`
+}
+
+// ServiceQueue 服务队列表 - 记录当前服务和等待状态
+type ServiceQueue struct {
+	ID          int       `gorm:"primaryKey;autoIncrement"`
+	RoomID      int       `gorm:"uniqueIndex"`
+	QueueType   string    `gorm:"type:varchar(20);index"` // service, waiting
+	Priority    int       `gorm:"index"`
+	EnterTime   time.Time `gorm:"type:datetime;index"`
+	Speed       string    `gorm:"type:varchar(20)"`
+	TargetTemp  float32   `gorm:"type:float(5,2)"`
+	CurrentTemp float32   `gorm:"type:float(5,2)"`
+	Position    int       // 在等待队列中的位置
+	CreatedAt   time.Time `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+}
+
 // 用户表
 type User struct {
 	Account  string `gorm:"primary_key;type:varchar(255)"`
 	Password string `gorm:"type:varchar(255)"`
 	Identity string `gorm:"type:varchar(255)"`
-}
-
-// 调度表
-type SchedulerBoard struct {
-	ID       int `gorm:"primary_key"`
-	RoomID   int
-	Duration float32 `gorm:"type:float(5, 2)"`
-	Speed    string  `gorm:"type:varchar(255)"`
-	Cost     float32 `gorm:"type:float(7, 2)"`
 }
