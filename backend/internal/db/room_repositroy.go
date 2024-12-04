@@ -22,7 +22,7 @@ type IRoomRepository interface {
 	// GetAvailableRooms() ([]RoomInfo, error)
 	UpdateTemperature(roomID int, targetTemp float32) error
 	UpdateSpeed(roomID int, speed string) error
-	PowerOnAC(roomID int, mode string, defaultTemp float32) error
+	PowerOnAC(roomID int, mode string, defaultTemp float32, defaultSpeed string) error
 	PowerOffAC(roomID int) error
 	SetACMode(mode string) error
 }
@@ -168,15 +168,14 @@ func (r *GormRoomRepository) UpdateSpeed(roomID int, speed string) error {
 	}
 	return nil
 }
-func (r *GormRoomRepository) PowerOnAC(roomID int, mode string, defaultTemp float32) error {
+func (r *GormRoomRepository) PowerOnAC(roomID int, mode string, defaultTemp float32, defaultSpeed string) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// 更新房间空调状态
 		updates := map[string]interface{}{
-			"ac_state":      1,           // 开机状态
-			"mode":          mode,        // 工作模式
-			"current_temp":  defaultTemp, // 当前温度设为默认温度
-			"target_temp":   defaultTemp, // 目标温度设为默认温度
-			"current_speed": "",          // 初始无风速
+			"ac_state":      1,            // 开机状态
+			"mode":          mode,         // 工作模式
+			"target_temp":   defaultTemp,  // 目标温度设为默认温度
+			"current_speed": defaultSpeed, // 初始无风速
 		}
 
 		if err := tx.Model(&RoomInfo{}).Where("room_id = ?", roomID).Updates(updates).Error; err != nil {

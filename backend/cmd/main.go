@@ -1,13 +1,10 @@
 package main
 
 import (
-	"backend/api"
-	"backend/internal/db"
+	"backend/internal/app"
 	"backend/internal/logger"
-	"backend/internal/service"
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,49 +14,26 @@ import (
 func main() {
 	fmt.Println("Hello, World!")
 	// 初始化日志
-	logger.SetLevel(logger.InfoLevel)
-	defer logger.Close() // 确保日志文件正确关闭
-
-	// 初始化数据库连接
-	db.Init_DB()
-	defer db.SQLDB.Close()
-
-	// 初始化服务
-	service.InitServices()
-	defer service.StopServices()
-
-	// 设置路由
-	r := api.SetupRouter()
-	srv := &http.Server{
-		// 修改这里的地址来监听所有网络接口
-		Addr:    "0.0.0.0:8080",
-		Handler: r,
+	// 创建应用实例
+	app := app.NewApp()
+	if err := app.Initialize(); err != nil {
+		logger.Error("Init error: %v", err)
+		os.Exit(1)
 	}
 
-	// 优雅关闭
-	go func() {
-		logger.Info("Server is starting on 0.0.0.0:8080")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("listen: %s\n", err)
-			os.Exit(1)
-		}
-	}()
+	if err := app.Start(8080); err != nil {
+		logger.Error("Start error: %v", err)
+		os.Exit(1)
+	}
 
-	logger.Info("Server is running, you can access it via http://localhost:8080 or http://<your-local-ip>:8080")
-
-	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	logger.Info("Shutting down server...")
 
-	// 优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Error("Server forced to shutdown: %v", err)
+	if err := app.Stop(ctx); err != nil {
+		logger.Error("Stop error: %v", err)
 	}
-
-	logger.Info("Server exiting")
 }

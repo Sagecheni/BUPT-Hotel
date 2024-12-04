@@ -2,19 +2,19 @@ package db
 
 import "time"
 
-// 房间信息表
+// 房间表
 type RoomInfo struct {
-	RoomID       int       `gorm:"primaryKey"`
-	ClientID     string    `gorm:"type:varchar(255)"`
-	ClientName   string    `gorm:"type:varchar(255)"`
-	CheckinTime  time.Time `gorm:"type:datetime"`
-	CheckoutTime time.Time `gorm:"type:datetime"`
-	State        int
-	CurrentSpeed string  `gorm:"type:varchar(255)"`
-	CurrentTemp  float32 `gorm:"type:floadd dd dd ddt"`
-	ACState      int     // 0: 关闭 1: 开启
-	Mode         string  `gorm:"type:varchar(20)"` // cooling/heating
-	TargetTemp   float32 `gorm:"type:float(5, 2)"`
+	RoomID       int    `gorm:"primaryKey"`
+	State        int    `gorm:"default:0"` // 0:空闲 1:占用
+	ClientID     string `gorm:"type:varchar(50)"`
+	ClientName   string `gorm:"type:varchar(50)"`
+	CheckinTime  time.Time
+	CheckoutTime time.Time
+	ACState      int     `gorm:"default:0"`       // 空调状态 0:关闭 1:开启
+	Mode         string  `gorm:"default:cooling"` // cooling/heating
+	CurrentSpeed string  // 当前风速
+	CurrentTemp  float32 // 当前温度
+	TargetTemp   float32 `gorm:"default:26"` // 目标温度
 }
 
 // 详单表
@@ -66,9 +66,10 @@ type ServiceQueue struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
 }
 
-// 用户表
+// User 用户表
 type User struct {
-	Account  string `gorm:"primary_key;type:varchar(255)"`
-	Password string `gorm:"type:varchar(255)"`
-	Identity string `gorm:"type:varchar(255)"`
+	ID       int    `gorm:"primaryKey;autoIncrement"`
+	Account  string `gorm:"type:varchar(50);unique"`
+	Password string `gorm:"type:varchar(50)"`
+	Identity string `gorm:"type:varchar(20)"` // manager, reception, admin
 }

@@ -3,754 +3,465 @@
 package handlers
 
 import (
-	"backend/internal/db"
-	"backend/internal/service"
-	"fmt"
+	"backend/internal/ac"
+	"backend/internal/billing"
+	"backend/internal/logger"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// 设置默认值请求
-type SetDefaultsRequest struct {
-	DefaultSpeed string  `json:"default_speed"`
-	DefaultTemp  float32 `json:"default_temp"`
+// ACHandler 定义空调处理器结构
+type ACHandler struct {
+	acService      ac.ACService
+	billingService billing.BillingService // 添加计费服务
 }
 
-// 房间状态查询请求
-type RoomStatusRequest struct {
-	RoomNumber int `json:"roomNumber" binding:"required"`
+// NewACHandler 创建空调处理器实例
+func NewACHandler(acService ac.ACService, billingService billing.BillingService) *ACHandler {
+	return &ACHandler{
+		acService:      acService,
+		billingService: billingService,
+	}
 }
 
-// 房间状态响应
-type RoomStatusResponse struct {
-	CurrentCost        float32 `json:"currentCost"`
-	TotalCost          float32 `json:"totalCost"`
-	CurrentTemperature float32 `json:"currentTemperature"`
+// ACResponse 空调开机状态响应结构
+type ACResponse struct {
+	OperationMode      string  `json:"operationMode"`      // 运行模式（制冷/制热）
+	TargetTemperature  float32 `json:"targetTemperature"`  // 目标温度
+	CurrentTemperature float32 `json:"currentTemperature"` // 当前温度
+	CurrentFanSpeed    string  `json:"currentFanSpeed"`    // 当前风速
+	CurrentCost        float32 `json:"currentCost"`        // 当前费用
+	TotalCost          float32 `json:"totalCost"`          // 总费用
 }
 
-// PowerOnResponse 响应PowerOn请求结构
-type PowerOnResponse struct {
-	OperationMode     string  `json:"operationMode"`     // 工作模式 "制冷"/"制热"
-	TargetTemperature float32 `json:"targetTemperature"` // 目标温度
-	CurrentCost       float32 `json:"currentCost"`       // 当前费用
-	TotalCost         float32 `json:"totalCost"`         // 总费用
-	CurrentFanSpeed   string  `json:"currentFanSpeed"`   // 当前风速
-}
-
-// PowerOffResponse 响应Poweroff请求结构
+// PowerOffResponse 关机响应结构
 type PowerOffResponse struct {
 	CurrentCost float32 `json:"currentCost"`
 	TotalCost   float32 `json:"totalCost"`
 }
 
-// 模式映射表（英文到中文）
-var modeMap = map[string]string{
-	"cooling": "制冷",
-	"heating": "制热",
-}
-
-// 风速映射表（英文到中文）
-var fanSpeedMap = map[string]string{
-	"low":    "低",
-	"medium": "中",
-	"high":   "高",
-}
-
-// 设置空调模式
-type SetModeRequest struct {
-	Mode string `json:"mode" binding:"required"` // cooling/heating
-}
-
-// 温度调节请求
-type ChangeTempRequest struct {
-	RoomNumber        int     `json:"roomNumber" binding:"required"`
-	TargetTemperature float32 `json:"targetTemperature" binding:"required"`
-}
-
-// 风速调节请求
-type ChangeSpeedRequest struct {
-	RoomNumber      int    `json:"roomNumber" binding:"required"`
-	CurrentFanSpeed string `json:"currentFanSpeed" binding:"required"`
-}
-
-// 空调设置
-type ACHandler struct {
-	roomRepo  *db.RoomRepository
-	scheduler *service.Scheduler
-}
-
-// 风速映射表(中文到英文)
-var speedMap = map[string]string{
-	"低": "low",
-	"中": "medium",
-	"高": "high",
-}
-
-// 开机请求
-type PowerRequest struct {
-	RoomNumber int `json:"roomNumber" binding:"required"` // 房间号
-}
-
-type AirConditionRequest struct {
-	RoomID     int      `json:"room_id" binding:"required"`
-	TargetTemp *float32 `json:"target_temp,omitempty"` // 使用指针类型使其可选
-	Speed      *string  `json:"speed,omitempty"`
-}
-
-func NewACHandler(scheduler *service.Scheduler) *ACHandler {
-	return &ACHandler{
-		roomRepo:  db.NewRoomRepository(),
-		scheduler: scheduler,
-	}
-}
-
-func (h *ACHandler) PowerOn(c *gin.Context) {
-	var req PowerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	if room.State != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "房间未入住，无法开启空调",
-		})
-		return
-	}
-
-	if room.ACState == 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "空调已开启",
-		})
-		return
-	}
-	// 使用默认配置
-	defaults := h.scheduler.GetDefaultConfig()
-	err = h.roomRepo.PowerOnAC(req.RoomNumber, room.Mode, defaults.DefaultTemp)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "开启空调失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-	//设置默认风速
-	_, err = h.scheduler.HandleRequest(
-		req.RoomNumber,
-		defaults.DefaultSpeed,
-		defaults.DefaultTemp,
-		room.CurrentTemp, // 使用房间已有的温度
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "添加到调度队列失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-	// 获取账单服务实例
-	billingService := service.NewBillingService()
-	// 获取费用信息
-	bill, err := billingService.GenerateBill(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "获取账单失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-	// 获取当前费用（本次开机到现在的费用）
-	var currentCost float32 = 0
-	details, err := billingService.GetDetails(req.RoomNumber, time.Now(), time.Now())
-	if err == nil && len(details) > 0 {
-		for _, detail := range details {
-			currentCost += detail.Cost
-		}
-	}
-
-	// 构造响应
-	response := PowerOnResponse{
-		OperationMode:     modeMap[room.Mode],                 // 工作模式转中文
-		TargetTemperature: defaults.DefaultTemp,               // 使用默认目标温度
-		CurrentCost:       currentCost,                        // 当前费用
-		TotalCost:         bill.TotalCost,                     // 总费用
-		CurrentFanSpeed:   fanSpeedMap[defaults.DefaultSpeed], // 风速转中文
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
-func (h *ACHandler) PowerOff(c *gin.Context) {
-	var req PowerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	if room.ACState != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "空调未开启",
-		})
-		return
-	}
-
-	// 获取账单服务实例
-	billingService := service.NewBillingService()
-
-	// 获取本次开机的费用和总费用
-	bill, err := billingService.GenerateBill(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "获取账单失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 关闭空调并清理调度队列
-	h.scheduler.RemoveRoom(req.RoomNumber)
-	err = h.roomRepo.PowerOffAC(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "关闭空调失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 计算当前消费（从最后一次开机到现在的消费）
-	var currentCost float32 = 0
-	if len(bill.Details) > 0 {
-		lastPowerOnTime := room.CheckinTime // 默认使用入住时间
-		// 查找最后一次开机的时间
-		for _, detail := range bill.Details {
-			if detail.StartTime.After(lastPowerOnTime) {
-				lastPowerOnTime = detail.StartTime
-			}
-		}
-		// 获取这段时间内的消费
-		details, err := billingService.GetDetails(req.RoomNumber, lastPowerOnTime, time.Now())
-		if err == nil {
-			for _, detail := range details {
-				currentCost += detail.Cost
-			}
-		}
-	}
-
-	c.JSON(http.StatusOK, PowerOffResponse{
-		CurrentCost: currentCost,
-		TotalCost:   bill.TotalCost,
-	})
-}
-
-// 设置空调模式
-func (h *ACHandler) SetMode(c *gin.Context) {
-	var req SetModeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 验证
-	if req.Mode != "cooling" && req.Mode != "heating" {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "无效的工作模式，必须是 cooling 或 heating",
-		})
-		return
-	}
-
-	// 更新所有房间的工作模式
-	if err := h.roomRepo.SetACMode(req.Mode); err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "设置工作模式失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "设置工作模式成功",
-		Data: gin.H{
-			"mode": req.Mode,
-		},
-	})
-}
-
-// 设置空调温度和风速
-func (h *ACHandler) SetAirCondition(c *gin.Context) {
-	var req AirConditionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-	// 获取房间信息
-	room, err := h.roomRepo.GetRoomByID(req.RoomID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  fmt.Sprintf("房间 %d 不存在", req.RoomID),
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	if room.State != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "房间未入住",
-		})
-		return
-	}
-
-	if room.ACState != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "请先开启空调",
-		})
-		return
-	}
-
-	targetTemp := service.DefaultTemp
-	speed := service.DefaultSpeed
-
-	// 如果请求中包含了温度，使用请求的温度
-	if req.TargetTemp != nil {
-		targetTemp = *req.TargetTemp
-		// 验证温度是否在合法范围内
-		if err := h.validateTemp(room.Mode, targetTemp); err != nil {
-			c.JSON(http.StatusBadRequest, Response{
-				Code: 400,
-				Msg:  err.Error(),
-			})
-			return
-		}
-	} else {
-		// 如果没有指定温度，使用房间当前的目标温度
-		targetTemp = room.TargetTemp
-	}
-
-	// 如果请求中包含了风速，使用请求的风速
-	if req.Speed != nil {
-		speed = *req.Speed
-		// 验证风速值
-		if speed != service.SpeedLow &&
-			speed != service.SpeedMedium &&
-			speed != service.SpeedHigh {
-			c.JSON(http.StatusBadRequest, Response{
-				Code: 400,
-				Msg:  "无效的风速值",
-			})
-			return
-		}
-	} else {
-		// 如果没有指定风速，使用房间当前的风速
-		if room.CurrentSpeed != "" {
-			speed = room.CurrentSpeed
-		}
-	}
-
-	inService, err := h.scheduler.HandleRequest(
-		req.RoomID,
-		speed,
-		targetTemp,
-		room.CurrentTemp,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "处理空调请求失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "空调设置成功",
-		Data: gin.H{
-			"room_id":     req.RoomID,
-			"target_temp": req.TargetTemp,
-			"speed":       req.Speed,
-			"in_service":  inService,
-		},
-	})
-}
-
-func (h *ACHandler) validateTemp(mode string, temp float32) error {
+// 将空调模式转换为中文
+func translateMode(mode string) string {
 	switch mode {
 	case "cooling":
-		if temp < 18 || temp > 28 {
-			return fmt.Errorf("制冷模式温度范围为16-24度")
-		}
+		return "制冷"
 	case "heating":
-		if temp < 22 || temp > 28 {
-			return fmt.Errorf("制热模式温度范围为22-28度")
-		}
+		return "制热"
 	default:
-		return fmt.Errorf("无效的工作模式")
+		return mode
 	}
-	return nil
 }
 
-func (h *ACHandler) GetSchedulerStatus(c *gin.Context) {
-	// 获取服务队列状态
-	serviceQueue := h.scheduler.GetServiceQueue()
-	serviceStatus := make([]map[string]interface{}, 0)
-
-	for roomID, service := range serviceQueue {
-		serviceStatus = append(serviceStatus, map[string]interface{}{
-			"room_id":      roomID,
-			"current_temp": service.CurrentTemp,
-			"target_temp":  service.TargetTemp,
-			"speed":        service.Speed,
-			"duration":     service.Duration,
-			"is_completed": service.IsCompleted,
-			"start_time":   service.StartTime.Format("15:04:05"),
-		})
+// 将风速转换为中文
+func translateSpeed(speed string) string {
+	switch speed {
+	case "low":
+		return "低"
+	case "medium":
+		return "中"
+	case "high":
+		return "高"
+	default:
+		return ""
 	}
-
-	// 获取等待队列状态
-	waitQueue := h.scheduler.GetWaitQueue()
-	waitStatus := make([]map[string]interface{}, 0)
-
-	for _, wait := range waitQueue {
-		waitStatus = append(waitStatus, map[string]interface{}{
-			"room_id":       wait.RoomID,
-			"current_temp":  wait.CurrentTemp,
-			"target_temp":   wait.TargetTemp,
-			"speed":         wait.Speed,
-			"wait_duration": wait.WaitDuration,
-			"request_time":  wait.RequestTime.Format("15:04:05"),
-		})
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "获取调度状态成功",
-		Data: gin.H{
-			"service_queue_size": len(serviceQueue),
-			"wait_queue_size":    len(waitQueue),
-			"service_queue":      serviceStatus,
-			"wait_queue":         waitStatus,
-		},
-	})
 }
 
-func (h *ACHandler) SetDefaults(c *gin.Context) {
-	var req SetDefaultsRequest
+// =============== 顾客接口 ===============
+
+// PowerOn 顾客开启房间空调
+func (h *ACHandler) CustomerPowerOn(c *gin.Context) {
+	var req struct {
+		RoomNumber int `json:"roomNumber" binding:"required"`
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
+			Code: -1,
+			Msg:  "invalid request parameters",
 		})
 		return
 	}
 
-	config := service.DefaultConfig{
-		DefaultSpeed: req.DefaultSpeed,
-		DefaultTemp:  req.DefaultTemp,
-	}
-
-	if err := h.scheduler.SetDefaultConfig(config); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "设置默认参数失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "设置默认参数成功",
-		Data: config,
-	})
-}
-
-func (h *ACHandler) GetDefaults(c *gin.Context) {
-	config := h.scheduler.GetDefaultConfig()
-
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "获取默认参数成功",
-		Data: config,
-	})
-}
-
-// 调节温度
-func (h *ACHandler) ChangeTemperature(c *gin.Context) {
-	var req ChangeTempRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 获取房间信息
-	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	if room.State != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "房间未入住",
-		})
-		return
-	}
-
-	if room.ACState != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "空调未开启",
-		})
-		return
-	}
-
-	// 验证温度范围
-	if err := h.validateTemp(room.Mode, req.TargetTemperature); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
+	// 开启空调
+	if err := h.acService.PowerOn(req.RoomNumber); err != nil {
+		logger.Error("Failed to power on AC: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
 			Msg:  err.Error(),
 		})
 		return
 	}
 
-	// 使用当前风速（如果没有风速，使用默认值）
-	currentSpeed := room.CurrentSpeed
-	if currentSpeed == "" {
-		currentSpeed = service.DefaultSpeed
-	}
-
-	// 请求温度变化
-	inService, err := h.scheduler.HandleRequest(
-		req.RoomNumber,
-		currentSpeed,
-		req.TargetTemperature,
-		room.CurrentTemp,
-	)
+	// 获取空调状态
+	state, err := h.acService.GetACState(req.RoomNumber)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "处理温度调节请求失败",
-			Err:  err.Error(),
+		logger.Error("Failed to get AC state: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "温度调节请求已接受",
-		Data: gin.H{
-			"room_id":      req.RoomNumber,
-			"target_temp":  req.TargetTemperature,
-			"current_temp": room.CurrentTemp,
-			"speed":        currentSpeed,
-			"in_service":   inService,
-		},
-	})
-}
-
-// 调节风速
-func (h *ACHandler) ChangeSpeed(c *gin.Context) {
-	var req ChangeSpeedRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 转换中文风速为英文
-	speed, ok := speedMap[req.CurrentFanSpeed]
-	if !ok {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "无效的风速值",
-		})
-		return
-	}
-
-	// 获取房间信息
-	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
+	// 获取费用信息
+	currentCost, err := h.billingService.CalculateCurrentFee(req.RoomNumber)
 	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
-			Err:  err.Error(),
+		logger.Error("Failed to calculate current fee: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
 		})
 		return
 	}
 
-	if room.State != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "房间未入住",
-		})
-		return
-	}
-
-	if room.ACState != 1 {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "空调未开启",
-		})
-		return
-	}
-
-	// 请求风速变化
-	inService, err := h.scheduler.HandleRequest(
-		req.RoomNumber,
-		speed,
-		room.TargetTemp,
-		room.CurrentTemp,
-	)
+	totalCost, err := h.billingService.CalculateTotalFee(req.RoomNumber, time.Now().AddDate(0, 0, -1), time.Now())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "处理风速调节请求失败",
-			Err:  err.Error(),
+		logger.Error("Failed to calculate total fee: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
 		})
 		return
 	}
-
-	c.JSON(http.StatusOK, Response{
-		Code: 200,
-		Msg:  "风速调节请求已接受",
-		Data: gin.H{
-			"room_id":      req.RoomNumber,
-			"current_temp": room.CurrentTemp,
-			"target_temp":  room.TargetTemp,
-			"speed":        speed,
-			"in_service":   inService,
-		},
-	})
-}
-
-// RoomStatus 获取房间当前状态
-func (h *ACHandler) RoomStatus(c *gin.Context) {
-	var req RoomStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code: 400,
-			Msg:  "Invalid request",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 获取房间信息
-	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 获取账单服务实例
-	billingService := service.NewBillingService()
-
-	// 获取总费用信息
-	bill, err := billingService.GenerateBill(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "获取账单失败",
-			Err:  err.Error(),
-		})
-		return
-	}
-
-	// 获取当前费用（本次开机到现在的费用）
-	var currentCost float32 = 0
-	if room.ACState == 1 { // 只有空调开启时才计算当前费用
-		details, err := billingService.GetDetails(req.RoomNumber, room.CheckinTime, time.Now())
-		if err == nil && len(details) > 0 {
-			// 找到最后一次开机时间
-			var lastPowerOnTime time.Time
-			for _, detail := range details {
-				if detail.StartTime.After(lastPowerOnTime) {
-					lastPowerOnTime = detail.StartTime
-				}
-			}
-			// 计算从最后一次开机到现在的费用
-			for _, detail := range details {
-				if detail.StartTime.After(lastPowerOnTime) || detail.StartTime.Equal(lastPowerOnTime) {
-					currentCost += detail.Cost
-				}
-			}
-		}
-	}
-
-	response := RoomStatusResponse{
+	// 构造响应
+	response := ACResponse{
+		OperationMode:      translateMode(state.Mode),
+		TargetTemperature:  state.TargetTemp,
+		CurrentTemperature: state.CurrentTemp,
+		CurrentFanSpeed:    translateSpeed(state.Speed),
 		CurrentCost:        currentCost,
-		TotalCost:          bill.TotalCost,
-		CurrentTemperature: room.CurrentTemp,
+		TotalCost:          totalCost,
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// PowerOff 顾客关闭房间空调
+func (h *ACHandler) CustomerPowerOff(c *gin.Context) {
+	var req struct {
+		RoomNumber int `json:"roomNumber" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "invalid request parameters",
+		})
+		return
+	}
+
+	// 在关机前先获取当前费用
+	currentCost, err := h.billingService.CalculateCurrentFee(req.RoomNumber)
+	if err != nil {
+		logger.Error("Failed to calculate current fee: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	// 计算总费用（这里假设查询最近24小时的总费用）
+	totalCost, err := h.billingService.CalculateTotalFee(
+		req.RoomNumber,
+		time.Now().AddDate(0, 0, -1),
+		time.Now(),
+	)
+	if err != nil {
+		logger.Error("Failed to calculate total fee: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	// 关闭空调
+	if err := h.acService.PowerOff(req.RoomNumber); err != nil {
+		logger.Error("Failed to power off AC: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	// 返回费用信息
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+		Data: PowerOffResponse{
+			CurrentCost: currentCost,
+			TotalCost:   totalCost,
+		},
+	})
+}
+
+// SetTemperature 顾客调节温度
+func (h *ACHandler) CustomerSetTemperature(c *gin.Context) {
+	var req struct {
+		RoomNumber        int     `json:"roomNumber" binding:"required"`
+		TargetTemperature float32 `json:"targetTemperature" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "invalid request parameters",
+		})
+		return
+	}
+
+	if err := h.acService.SetTemperature(req.RoomNumber, req.TargetTemperature); err != nil {
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+	})
+}
+
+// SetFanSpeed 顾客调节风速
+func (h *ACHandler) CustomerSetFanSpeed(c *gin.Context) {
+	var req struct {
+		RoomNumber      int    `json:"roomNumber" binding:"required"`
+		CurrentFanSpeed string `json:"currentFanSpeed" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "invalid request parameters",
+		})
+		return
+	}
+
+	speed := ""
+	switch req.CurrentFanSpeed {
+	case "低":
+		speed = "low"
+	case "中":
+		speed = "medium"
+	case "高":
+		speed = "high"
+	default:
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "invalid fan speed",
+		})
+		return
+	}
+
+	if err := h.acService.SetFanSpeed(req.RoomNumber, speed); err != nil {
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+	})
+}
+
+// GetACState 顾客查询空调状态
+func (h *ACHandler) CustomerGetACState(c *gin.Context) {
+	roomID := c.GetInt("roomID")
+
+	state, err := h.acService.GetACState(roomID)
+	if err != nil {
+		logger.Error("Failed to get AC state: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+		Data: state,
+	})
+}
+
+// =============== 管理员接口 ===============
+
+// AdminPowerOnResponse 中央空调开机响应结构
+type AdminPowerOnResponse struct {
+	OperationMode            string  `json:"operationMode"`
+	MinTemperature           float32 `json:"minTemperature"`
+	MaxTemperature           float32 `json:"maxTemperature"`
+	LowSpeedRate             float32 `json:"lowSpeedRate"`
+	MediumSpeedRate          float32 `json:"mediumSpeedRate"`
+	HighSpeedRate            float32 `json:"highSpeedRate"`
+	DefaultTargetTemperature float32 `json:"defaultTargetTemperature"`
+}
+
+func (h *ACHandler) AdminPowerOnMainUnit(c *gin.Context) {
+	if err := h.acService.PowerOnMainUnit(); err != nil {
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	// 获取当前温度范围配置
+	config, err := h.acService.GetTemperatureRange("cooling")
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	response := AdminPowerOnResponse{
+		OperationMode:            "制冷",
+		MinTemperature:           config.MinTemp,
+		MaxTemperature:           config.MaxTemp,
+		LowSpeedRate:             0.5, // 低速风费率
+		MediumSpeedRate:          1.0, // 中速风费率
+		HighSpeedRate:            2.0, // 高速风费率
+		DefaultTargetTemperature: config.DefaultTemp,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// PowerOffMainUnit 管理员关闭中央空调
+func (h *ACHandler) AdminPowerOffMainUnit(c *gin.Context) {
+	if err := h.acService.PowerOffMainUnit(); err != nil {
+		logger.Error("Failed to power off main AC unit: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+	})
+}
+
+// GetMainUnitState 获取中央空调状态
+func (h *ACHandler) AdminGetMainUnitState(c *gin.Context) {
+	state, err := h.acService.GetMainUnitState()
+	if err != nil {
+		logger.Error("Failed to get main unit state: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+		Data: map[string]interface{}{
+			"main_unit_on": state,
+		},
+	})
+}
+
+// SetMode 管理员设置工作模式
+func (h *ACHandler) AdminSetMode(c *gin.Context) {
+	var req struct {
+		Mode string `json:"mode" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "invalid request parameters",
+		})
+		return
+	}
+
+	if err := h.acService.SetMode(req.Mode); err != nil {
+		logger.Error("Failed to set AC mode: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+	})
+}
+
+// SetTemperatureRange 管理员设置温度范围
+func (h *ACHandler) AdminSetTemperatureRange(c *gin.Context) {
+	var req struct {
+		Mode        string  `json:"mode" binding:"required"`
+		MinTemp     float32 `json:"min_temp" binding:"required"`
+		MaxTemp     float32 `json:"max_temp" binding:"required"`
+		DefaultTemp float32 `json:"default_temp" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "invalid request parameters",
+		})
+		return
+	}
+
+	if err := h.acService.SetTemperatureRange(req.Mode, req.MinTemp, req.MaxTemp, req.DefaultTemp); err != nil {
+		logger.Error("Failed to set temperature range: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+	})
+}
+
+// GetTemperatureRange 获取温度范围配置
+func (h *ACHandler) AdminGetTemperatureRange(c *gin.Context) {
+	mode := c.Query("mode")
+	if mode == "" {
+		c.JSON(http.StatusBadRequest, Response{
+			Code: -1,
+			Msg:  "mode parameter is required",
+		})
+		return
+	}
+
+	config, err := h.acService.GetTemperatureRange(mode)
+	if err != nil {
+		logger.Error("Failed to get temperature range: %v", err)
+		c.JSON(http.StatusOK, Response{
+			Code: -1,
+			Msg:  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code: 0,
+		Msg:  "success",
+		Data: config,
+	})
 }

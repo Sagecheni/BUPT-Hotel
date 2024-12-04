@@ -55,6 +55,7 @@ func NewScheduler(eventBus *events.EventBus, roomRepo db.IRoomRepository, config
 	eventBus.Subscribe(events.EventServiceRequest, s.handleServiceRequest)
 	eventBus.Subscribe(events.EventTemperatureChange, s.handleTemperatureChange)
 	eventBus.Subscribe(events.EventSpeedChange, s.handleSpeedChange)
+	eventBus.Subscribe(events.EventServiceComplete, s.handleServiceComplete)
 
 	// 启动监控协程
 	go s.monitorQueues()
@@ -227,11 +228,12 @@ func (s *Scheduler) handleServiceRequest(e events.Event) {
 
 			// 创建新服务的记录
 			serviceDetail := &db.ServiceDetail{
-				RoomID:      req.RoomID,
-				StartTime:   time.Now(),
-				InitialTemp: req.CurrentTemp,
-				TargetTemp:  req.TargetTemp,
-				Speed:       req.Speed,
+				RoomID:       req.RoomID,
+				StartTime:    time.Now(),
+				InitialTemp:  req.CurrentTemp,
+				TargetTemp:   req.TargetTemp,
+				Speed:        req.Speed,
+				ServiceState: "active",
 			}
 			if err := s.serviceRepo.CreateServiceDetail(serviceDetail); err != nil {
 				logger.Error("Failed to create service detail: %v", err)
@@ -295,7 +297,6 @@ func (s *Scheduler) handleTemperatureChange(e events.Event) {
 	if serviceItem == nil {
 		return
 	}
-	// 获取当前活动的服务记录
 	// 获取当前活动的服务记录
 	activeService, err := s.serviceRepo.GetActiveServiceDetail(data.RoomID)
 	if err != nil {
@@ -497,7 +498,7 @@ func (s *Scheduler) handleSpeedChange(e events.Event) {
 					RoomID:    speedData.RoomID,
 					Timestamp: time.Now(),
 					Data: events.WaitQueueEventData{
-						RoomID:   speedData.RoomID,
+						RoomID: speedData.RoomID,
 					},
 				})
 
@@ -783,6 +784,19 @@ func (s *Scheduler) moveNextToService() {
 
 		s.queueMgr.AddToServiceQueue(newService)
 		s.queueMgr.RemoveFromWaitQueue(next.RoomID)
+	}
+}
+
+func (s *Scheduler) handleServiceComplete(e events.Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 从服务队列中移除
+	s.queueMgr.RemoveFromServiceQueue(e.RoomID)
+
+	// 从数据库队列中移除
+	if err := s.serviceRepo.RemoveFromQueue(e.RoomID); err != nil {
+		logger.Error("Failed to remove from queue: %v", err)
 	}
 }
 
