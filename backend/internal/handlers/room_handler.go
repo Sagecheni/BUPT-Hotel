@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"backend/internal/db"
+	"backend/internal/service"
 	"fmt"
 	"net/http"
 
@@ -84,6 +85,7 @@ func (h *RoomHandler) CheckOut(c *gin.Context) {
 		})
 		return
 	}
+
 	room, err := h.roomRepo.GetRoomByID(req.RoomID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, Response{
@@ -102,11 +104,21 @@ func (h *RoomHandler) CheckOut(c *gin.Context) {
 		return
 	}
 
+	// 如果空调开着，先处理空调关闭
+	if room.ACState == 1 {
+		// 从调度队列中移除
+		scheduler := service.GetScheduler()
+		if scheduler != nil {
+			scheduler.RemoveRoom(req.RoomID)
+		}
+	}
+
+	// 处理退房
 	err = h.roomRepo.CheckOut(req.RoomID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Code: 500,
-			Msg:  "入住失败",
+			Msg:  "退房失败",
 			Err:  err.Error(),
 		})
 		return
@@ -115,5 +127,4 @@ func (h *RoomHandler) CheckOut(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "退房成功",
 	})
-
 }

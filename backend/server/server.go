@@ -65,10 +65,6 @@ func (s *Server) Start(host string, port int) error {
 		api.POST("/power-on", acHandler.PowerOn)
 		api.POST("/power-off", acHandler.PowerOff)
 		api.POST("/set-mode", acHandler.SetMode)
-		api.POST("/set-condition", acHandler.SetAirCondition)
-		api.GET("/scheduler-status", acHandler.GetSchedulerStatus)
-		api.GET("/defaults", acHandler.GetDefaults)
-		api.POST("/defaults", acHandler.SetDefaults)
 		api.POST("/check-in", roomHandler.CheckIn)
 		api.POST("/check-out", roomHandler.CheckOut)
 

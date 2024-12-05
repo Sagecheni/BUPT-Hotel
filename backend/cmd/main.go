@@ -4,7 +4,6 @@ import (
 	"backend/api"
 	"backend/internal/db"
 	"backend/internal/logger"
-	"backend/internal/service"
 	"context"
 	"fmt"
 	"net/http"
@@ -23,10 +22,6 @@ func main() {
 	// 初始化数据库连接
 	db.Init_DB()
 	defer db.SQLDB.Close()
-
-	// 初始化服务
-	service.InitServices()
-	defer service.StopServices()
 
 	// 设置路由
 	r := api.SetupRouter()

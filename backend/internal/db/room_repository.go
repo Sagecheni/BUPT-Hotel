@@ -57,11 +57,10 @@ func (r *RoomRepository) CheckIn(roomID int, clientID, clientName string) error 
 	}).Error
 }
 
-// CheckOut 退房
 func (r *RoomRepository) CheckOut(roomID int) error {
 	now := time.Now()
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		// 如果空调开着，先关闭空调
+		// 获取房间信息
 		var room RoomInfo
 		if err := tx.Where("room_id = ?", roomID).First(&room).Error; err != nil {
 			return err
@@ -144,25 +143,11 @@ func (r *RoomRepository) PowerOnAC(roomID int, mode string, defaultTemp float32)
 		updates := map[string]interface{}{
 			"ac_state":      1,           // 开机状态
 			"mode":          mode,        // 工作模式
-			"current_temp":  defaultTemp, // 当前温度设为默认温度
 			"target_temp":   defaultTemp, // 目标温度设为默认温度
 			"current_speed": "",          // 初始无风速
 		}
 
 		if err := tx.Model(&RoomInfo{}).Where("room_id = ?", roomID).Updates(updates).Error; err != nil {
-			return err
-		}
-
-		// 记录操作日志
-		log := OperationLog{
-			RoomID: roomID,
-			OpTime: time.Now(),
-			OpType: 1, // 1表示开机操作
-			Old:    "off",
-			New:    "on",
-		}
-
-		if err := tx.Create(&log).Error; err != nil {
 			return err
 		}
 
@@ -182,19 +167,6 @@ func (r *RoomRepository) PowerOffAC(roomID int) error {
 			return err
 		}
 
-		// 记录操作日志
-		log := OperationLog{
-			RoomID: roomID,
-			OpTime: time.Now(),
-			OpType: 2, // 2表示关机操作
-			Old:    "on",
-			New:    "off",
-		}
-
-		if err := tx.Create(&log).Error; err != nil {
-			return err
-		}
-
 		return nil
 	})
 }
@@ -208,19 +180,19 @@ func (r *RoomRepository) SetACMode(mode string) error {
 			return err
 		}
 
-		// 记录操作日志
-		log := OperationLog{
-			RoomID: 0, // 0表示系统级操作
-			OpTime: time.Now(),
-			OpType: 3, // 3表示模式切换操作
-			Old:    "",
-			New:    mode,
-		}
-
-		if err := tx.Create(&log).Error; err != nil {
-			return err
-		}
-
 		return nil
 	})
+}
+
+// GetAllRooms 获取所有房间信息
+func (r *RoomRepository) GetAllRooms() ([]RoomInfo, error) {
+	var rooms []RoomInfo
+	result := r.db.Find(&rooms)
+	if result.Error != nil {
+		return nil, fmt.Errorf("获取所有房间失败: %v", result.Error)
+	}
+	if len(rooms) == 0 {
+		return nil, fmt.Errorf("没有房间")
+	}
+	return rooms, nil
 }

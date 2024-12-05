@@ -3,75 +3,148 @@ package service
 
 import (
 	"backend/internal/db"
-	"backend/internal/logger"
 	"fmt"
-	"math"
 	"time"
 )
 
-// 费率定义
-const (
-	RateLow    = 0.5 // 低速费率 (元/度)
-	RateMedium = 1.0 // 中速费率
-	RateHigh   = 2.0 // 高速费率
-)
+// 电费费率 (元/度)
+const PowerRate = 1.0
 
-// 费率映射表
+// 不同风速的费率 (元/分钟)
 var speedToRate = map[string]float32{
-	SpeedLow:    RateLow,
-	SpeedMedium: RateMedium,
-	SpeedHigh:   RateHigh,
+	"high":   1.0,       // 1元/分钟 (1度电/分钟 * 1元/度)
+	"medium": 1.0 / 2.0, // 0.5元/分钟 (0.5度电/分钟 * 1元/度)
+	"low":    1.0 / 3.0, // 0.33元/分钟 (0.33度电/分钟 * 1元/度)
 }
 
-// 账单服务
+// BillingService 账单服务
 type BillingService struct {
 	roomRepo   *db.RoomRepository
 	detailRepo *db.DetailRepository
+	scheduler  *Scheduler
 }
 
-// 账单响应
+// BillResponse 账单响应
 type BillResponse struct {
 	RoomID        int       `json:"room_id"`
 	CheckInTime   time.Time `json:"check_in_time"`
 	CheckOutTime  time.Time `json:"check_out_time"`
-	TotalDuration float32   `json:"total_duration"` // 总使用时长(秒)
-	TotalCost     float32   `json:"total_cost"`     // 总费用
+	TotalDuration float32   `json:"total_duration"` // 总使用时长(分钟)
+	TotalCost     float32   `json:"total_cost"`     // 总费用(元)
 	Details       []Detail  `json:"details"`        // 详单列表
 }
 
-// 详单记录
+// CurrentBill 实时费用计算结果
+type CurrentBill struct {
+	RoomID      int       `json:"room_id"`
+	CurrentFee  float32   `json:"current_fee"`   // 当前时段费用(元)
+	TotalFee    float32   `json:"total_fee"`     // 总费用(元)
+	LastBilled  time.Time `json:"last_billed"`   // 上次计费时间点
+	IsInService bool      `json:"is_in_service"` // 是否在服务队列中
+}
+
+// Detail 详单记录
 type Detail struct {
-	RoomID    int       `json:"room_id"`    // 房间号
-	QueryTime time.Time `json:"query_time"` // 请求时间
-	StartTime time.Time `json:"start_time"` // 服务开始时间
-	EndTime   time.Time `json:"end_time"`   // 服务结束时间
-	Duration  float32   `json:"duration"`   // 服务时长(秒)
-	Speed     string    `json:"speed"`      // 风速
-	Cost      float32   `json:"cost"`       // 当前费用
-	Rate      float32   `json:"rate"`       // 费率
-	// 额外的有用信息
-	TempChange  float32 `json:"temp_change"`  // 温度变化
-	CurrentTemp float32 `json:"current_temp"` // 当前温度
-	TargetTemp  float32 `json:"target_temp"`  // 目标温度
+	RoomID      int       `json:"room_id"`      // 房间号
+	StartTime   time.Time `json:"start_time"`   // 服务开始时间
+	EndTime     time.Time `json:"end_time"`     // 服务结束时间
+	Duration    float32   `json:"duration"`     // 服务时长(分钟)
+	Speed       string    `json:"speed"`        // 风速
+	Cost        float32   `json:"cost"`         // 费用(元)
+	CurrentTemp float32   `json:"current_temp"` // 当前温度
 }
 
 // NewBillingService 创建账单服务
-func NewBillingService() *BillingService {
+func NewBillingService(scheduler *Scheduler) *BillingService {
 	return &BillingService{
 		roomRepo:   db.NewRoomRepository(),
 		detailRepo: db.NewDetailRepository(),
+		scheduler:  scheduler,
 	}
+}
+//FIXME 还是会出现当再次到达目标温度的时候，当前费用会被清零的问题
+// CalculateCurrentFee 计算实时费用
+func (s *BillingService) CalculateCurrentFee(roomID int) (*CurrentBill, error) {
+	room, err := s.roomRepo.GetRoomByID(roomID)
+	if err != nil {
+		return nil, fmt.Errorf("获取房间信息失败: %v", err)
+	}
+
+	// 获取本次入住以来的所有详单记录
+	details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(
+		roomID,
+		room.CheckinTime,
+		time.Now(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("获取详单记录失败: %v", err)
+	}
+
+	result := &CurrentBill{
+		RoomID:      roomID,
+		CurrentFee:  0,
+		TotalFee:    0,
+		LastBilled:  time.Now(),
+		IsInService: false,
+	}
+
+	// 计算总费用（累计所有历史费用）
+	for _, detail := range details {
+		result.TotalFee += detail.Cost
+	}
+
+	// 如果空调关闭，当前费用保持为0
+	if room.ACState != 1 {
+		return result, nil
+	}
+
+	// 空调开启时的处理
+	// 1. 从最后一次开机时间开始累计所有费用
+	var lastPowerOnTime time.Time
+	powerOnFound := false
+
+	// 从后向前找到最后一次开机时间（间隔超过5秒的记录）
+	for i := len(details) - 1; i > 0; i-- {
+		if details[i].StartTime.Sub(details[i-1].EndTime) > time.Second*5 {
+			lastPowerOnTime = details[i].StartTime
+			powerOnFound = true
+			break
+		}
+	}
+
+	// 如果没找到明显的开机时间点，使用第一条记录的时间
+	if !powerOnFound && len(details) > 0 {
+		lastPowerOnTime = details[0].StartTime
+	} else if !powerOnFound {
+		lastPowerOnTime = room.CheckinTime
+	}
+
+	// 2. 计算当前费用（本次开机后的所有费用）
+	for _, detail := range details {
+		if !detail.StartTime.Before(lastPowerOnTime) {
+			result.CurrentFee += detail.Cost
+		}
+	}
+
+	// 3. 如果在服务队列中，加上当前服务的实时费用
+	if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
+		result.IsInService = true
+		duration := float32(time.Since(serviceObj.StartTime).Minutes())
+		rate := speedToRate[string(serviceObj.Speed)]
+		currentServiceFee := duration * rate
+		result.CurrentFee += currentServiceFee
+		result.TotalFee += currentServiceFee
+	}
+
+	return result, nil
 }
 
 // CreateDetail 创建详单记录
 func (s *BillingService) CreateDetail(roomID int, service *ServiceObject) error {
 	now := time.Now()
-	duration := float32(now.Sub(service.StartTime).Seconds())
-	rate := speedToRate[service.Speed]
-
-	// 计算温度变化和费用
-	tempChange := float32(math.Abs(float64(service.CurrentTemp - service.TargetTemp)))
-	cost := rate * tempChange
+	duration := float32(now.Sub(service.StartTime).Minutes()) // 转换为分钟
+	rate := speedToRate[string(service.Speed)]
+	cost := duration * rate
 
 	detail := &db.Detail{
 		RoomID:     roomID,
@@ -79,10 +152,10 @@ func (s *BillingService) CreateDetail(roomID int, service *ServiceObject) error 
 		StartTime:  service.StartTime,
 		EndTime:    now,
 		ServeTime:  duration,
-		Speed:      service.Speed,
+		Speed:      string(service.Speed),
 		Cost:       cost,
 		Rate:       rate,
-		TempChange: tempChange,
+		TempChange: service.TargetTemp - service.CurrentTemp,
 	}
 
 	return s.detailRepo.CreateDetail(detail)
@@ -111,15 +184,16 @@ func (s *BillingService) GenerateBill(roomID int) (*BillResponse, error) {
 		CheckOutTime: time.Now(),
 	}
 
+	// 计算总费用、时长和耗电量
 	for _, d := range details {
 		detail := Detail{
-			StartTime:  d.StartTime,
-			EndTime:    d.EndTime,
-			Duration:   d.ServeTime,
-			Speed:      d.Speed,
-			Rate:       d.Rate,
-			Cost:       d.Cost,
-			TempChange: d.TempChange,
+			RoomID:      d.RoomID,
+			StartTime:   d.StartTime,
+			EndTime:     d.EndTime,
+			Duration:    d.ServeTime, // 分钟
+			Speed:       d.Speed,
+			Cost:        d.Cost,       // 元
+			CurrentTemp: d.TempChange, // 使用已有字段存储温度信息
 		}
 		response.Details = append(response.Details, detail)
 		response.TotalDuration += detail.Duration
@@ -129,35 +203,6 @@ func (s *BillingService) GenerateBill(roomID int) (*BillResponse, error) {
 	return response, nil
 }
 
-// AddDetail 添加详单记录
-func (s *BillingService) AddDetail(roomID int, startTime time.Time, endTime time.Time,
-	speed string, currentTemp float32, targetTemp float32) error {
-
-	duration := float32(endTime.Sub(startTime).Seconds())
-	rate := speedToRate[speed]
-	tempChange := float32(math.Abs(float64(currentTemp - targetTemp)))
-	cost := rate * tempChange
-
-	detail := &db.Detail{
-		RoomID:    roomID,
-		QueryTime: time.Now(),
-		StartTime: startTime,
-		EndTime:   endTime,
-		ServeTime: duration,
-		Speed:     speed,
-		Cost:      cost,
-		Rate:      rate,
-	}
-
-	err := s.detailRepo.CreateDetail(detail)
-	if err != nil {
-		logger.Error("创建详单记录失败: %v", err)
-		return err
-	}
-
-	return nil
-}
-
 // GetDetails 获取详单记录
 func (s *BillingService) GetDetails(roomID int, startTime, endTime time.Time) ([]db.Detail, error) {
 	details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(roomID, startTime, endTime)
@@ -165,4 +210,9 @@ func (s *BillingService) GetDetails(roomID int, startTime, endTime time.Time) ([
 		return nil, fmt.Errorf("获取详单记录失败: %v", err)
 	}
 	return details, nil
+}
+
+// GetBillingService 获取账单服务实例
+func GetBillingService() *BillingService {
+	return billingService
 }

@@ -10,6 +10,7 @@ import (
 var (
 	schedulerService *Scheduler
 	monitorService   *MonitorService
+	billingService   *BillingService
 	once             sync.Once
 )
 
@@ -17,12 +18,13 @@ var (
 func InitServices() {
 	once.Do(func() {
 		schedulerService = NewScheduler()
-		schedulerService.SetLogging(false) // 关闭scheduler的日志
-
+		schedulerService.SetLogging(true) // 关闭scheduler的日志
+		billingService = NewBillingService(schedulerService)
+		schedulerService.SetBillingService(billingService)
 		monitorService = NewMonitorService(schedulerService)
 		// 启动监控服务
-		monitorService.StartRoomTempMonitor(10 * time.Second)
-		monitorService.StartQueuesMonitor(5 * time.Second)
+		monitorService.StartRoomTempMonitor(1 * time.Second)
+		//monitorService.StartQueuesMonitor(5 * time.Second)
 	})
 }
 

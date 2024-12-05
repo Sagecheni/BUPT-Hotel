@@ -1,8 +1,11 @@
+// internal/service/scheduler.go
+
 package service
 
 import (
 	"backend/internal/db"
 	"backend/internal/logger"
+	"backend/internal/types"
 	"container/heap"
 	"fmt"
 	"math"
@@ -15,46 +18,29 @@ const (
 	WaitTime    = 20 // 时间片
 )
 
-const (
-	DefaultSpeed = SpeedMedium   // 默认中速
-	DefaultTemp  = float32(25.0) // 默认25度
-)
-
-// 添加默认配置结构体
-type DefaultConfig struct {
-	DefaultSpeed string  `json:"default_speed"`
-	DefaultTemp  float32 `json:"default_temp"`
+// ServiceObject 服务对象
+type ServiceObject struct {
+	RoomID      int
+	StartTime   time.Time // 当前服务开始时间
+	PowerOnTime time.Time // 开机时间，用于费用计算
+	Speed       types.Speed
+	Duration    float32
+	TargetTemp  float32
+	CurrentTemp float32
+	IsCompleted bool
 }
 
-const (
-	// 温度变化速率 (每秒变化的温度)
-	TempChangeRateLow    = 0.03333 // 低速温度变化率
-	TempChangeRateMedium = 0.05    // 中速温度变化率
-	TempChangeRateHigh   = 0.1     // 高速温度变化率
-)
-
-const tempThreshold = 0.1
-
-// 速度与温度变化率的映射
-var speedTempRate = map[string]float32{
-	SpeedLow:    TempChangeRateLow,
-	SpeedMedium: TempChangeRateMedium,
-	SpeedHigh:   TempChangeRateHigh,
+// WaitObject 等待对象
+type WaitObject struct {
+	RoomID       int
+	RequestTime  time.Time
+	Speed        types.Speed
+	WaitDuration float32
+	TargetTemp   float32
+	CurrentTemp  float32
 }
 
-const (
-	SpeedLow    = "low"
-	SpeedMedium = "medium"
-	SpeedHigh   = "high"
-)
-
-var speedPriority = map[string]int{
-	SpeedLow:    1,
-	SpeedMedium: 2,
-	SpeedHigh:   3,
-}
-
-// PriorityQueue 实现
+// PriorityItem 优先级队列项
 type PriorityItem struct {
 	roomID    int
 	priority  int
@@ -62,6 +48,7 @@ type PriorityItem struct {
 	indexHeap int
 }
 
+// PriorityQueue 实现
 type PriorityQueue []*PriorityItem
 
 func (pq PriorityQueue) Len() int { return len(pq) }
@@ -93,46 +80,27 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return item
 }
 
-// 服务对象
-type ServiceObject struct {
-	RoomID      int
-	StartTime   time.Time
-	Speed       string
-	Duration    float32
-	TargetTemp  float32
-	CurrentTemp float32
-	IsCompleted bool
-}
-
-// 等待对象
-type WaitObject struct {
-	RoomID       int
-	RequestTime  time.Time
-	Speed        string
-	WaitDuration float32
-	TargetTemp   float32
-	CurrentTemp  float32
-}
-
-// 调度器结构
+// Scheduler 调度器
 type Scheduler struct {
-	mu             sync.RWMutex
-	serviceQueue   map[int]*ServiceObject
-	waitQueue      *PriorityQueue
-	waitQueueIndex map[int]*PriorityItem // 用于快速查找
-	currentService int
-	stopChan       chan struct{}
-	roomRepo       *db.RoomRepository
-	defaultConfig  DefaultConfig // 默认配置
-	enableLogging  bool
-	billingService *BillingService
+	mu               sync.RWMutex
+	serviceQueue     map[int]*ServiceObject
+	waitQueue        *PriorityQueue
+	waitQueueIndex   map[int]*PriorityItem
+	currentService   int
+	stopChan         chan struct{}
+	billingService   *BillingService
+	enableLogging    bool
+	roomTemp         map[int]float32 // 用于缓存房间温度
+	tempRecoveryRate float32         // 回温速率(每10秒)
+	tempTicker       *time.Ticker
+	roomRepo         *db.RoomRepository
 }
 
-// 控制日志开关
-func (s *Scheduler) SetLogging(enable bool) {
-	s.mu.Lock()
-	s.enableLogging = enable
-	s.mu.Unlock()
+// 速度优先级映射
+var speedPriority = map[types.Speed]int{
+	types.SpeedLow:    1,
+	types.SpeedMedium: 2,
+	types.SpeedHigh:   3,
 }
 
 func NewScheduler() *Scheduler {
@@ -140,25 +108,156 @@ func NewScheduler() *Scheduler {
 	heap.Init(&pq)
 
 	s := &Scheduler{
-		serviceQueue:   make(map[int]*ServiceObject), // 服务队列
-		waitQueue:      &pq,
-		waitQueueIndex: make(map[int]*PriorityItem), // 等待队列
-		currentService: 0,
-		stopChan:       make(chan struct{}),
-		roomRepo:       db.NewRoomRepository(),
-		defaultConfig: DefaultConfig{
-			DefaultSpeed: DefaultSpeed,
-			DefaultTemp:  DefaultTemp,
-		},
-		enableLogging:  false,
-		billingService: NewBillingService(),
+		serviceQueue:     make(map[int]*ServiceObject),
+		waitQueue:        &pq,
+		waitQueueIndex:   make(map[int]*PriorityItem),
+		currentService:   0,
+		stopChan:         make(chan struct{}),
+		roomRepo:         db.NewRoomRepository(),
+		enableLogging:    false,
+		roomTemp:         make(map[int]float32), // 初始化 roomTemp map
+		tempRecoveryRate: 0.05,                  // 设置默认回温速率
 	}
 
 	go s.monitorServiceStatus()
+	go s.monitorRoomTemperature()
 	return s
 }
 
-// 监控服务状态
+// SetBillingService 设置billing service的方法
+func (s *Scheduler) SetBillingService(billing *BillingService) {
+	s.mu.Lock()
+	s.billingService = billing
+	s.mu.Unlock()
+}
+
+// 回温处理
+func (s *Scheduler) monitorRoomTemperature() {
+	s.tempTicker = time.NewTicker(1 * time.Second) // 每秒检查一次
+
+	go func() {
+		for {
+			select {
+			case <-s.tempTicker.C:
+				s.handleTemperatureRecovery()
+			case <-s.stopChan:
+				s.tempTicker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+// HandleRequest 处理空调请求
+func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, currentTemp float32) (bool, error) {
+	s.mu.RLock()
+	// 检查是否已在服务队列
+	if service, exists := s.serviceQueue[roomID]; exists {
+		s.mu.RUnlock()
+		s.mu.Lock()
+		if service.Speed != speed {
+			// 记录当前服务的详单
+			if err := s.billingService.CreateDetail(roomID, service); err != nil {
+				logger.Error("创建风速切换详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+			}
+			// 更新服务对象
+			service.StartTime = time.Now()
+			service.Speed = speed
+			service.TargetTemp = targetTemp
+			// 更新房间风速
+			if err := s.roomRepo.UpdateSpeed(roomID, string(speed)); err != nil {
+				logger.Error("更新房间风速失败: %v", err)
+			}
+		}
+		s.mu.Unlock()
+		return true, nil
+	}
+	s.mu.RUnlock()
+
+	// 检查是否在等待队列
+	if item, exists := s.waitQueueIndex[roomID]; exists {
+		s.mu.Lock()
+		if s.shouldReschedule(roomID, speed) {
+			delete(s.waitQueueIndex, roomID)
+			heap.Remove(s.waitQueue, item.indexHeap)
+			result, err := s.schedule(roomID, speed, targetTemp, currentTemp)
+			s.mu.Unlock()
+			return result, err
+		}
+		item.waitObj.Speed = speed
+		item.waitObj.TargetTemp = targetTemp
+		item.priority = speedPriority[speed]
+		heap.Fix(s.waitQueue, item.indexHeap)
+		s.mu.Unlock()
+		return false, nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.currentService < MaxServices {
+		// 首次加入服务队列时创建初始详单
+		if err := s.addToServiceQueue(roomID, speed, targetTemp, currentTemp); err != nil {
+			return false, err
+		}
+		// 创建开机详单
+		initialService := s.serviceQueue[roomID]
+		if err := s.billingService.CreateDetail(roomID, initialService); err != nil {
+			logger.Error("创建开机详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+		}
+		return true, nil
+	}
+
+	return s.schedule(roomID, speed, targetTemp, currentTemp)
+}
+
+// ClearAllQueues 清空所有队列
+func (s *Scheduler) ClearAllQueues() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 清空服务队列
+	for roomID := range s.serviceQueue {
+		delete(s.serviceQueue, roomID)
+	}
+	s.currentService = 0
+
+	// 清空等待队列
+	s.waitQueue = &PriorityQueue{}
+	heap.Init(s.waitQueue)
+	s.waitQueueIndex = make(map[int]*PriorityItem)
+}
+
+func (s *Scheduler) schedule(roomID int, speed types.Speed, targetTemp, currentTemp float32) (bool, error) {
+	requestPriority := speedPriority[speed]
+
+	// 1.优先级调度
+	lowPriorityServices := s.findLowPriorityServices(requestPriority)
+	if len(lowPriorityServices) > 0 {
+		victim := s.selectVictim(lowPriorityServices)
+		if victim != nil {
+			if err := s.billingService.CreateDetail(victim.RoomID, victim); err != nil {
+				logger.Error("创建被抢占服务详单失败: %v", err)
+			}
+
+			// 将被抢占的服务对象添加到等待队列
+			s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
+			delete(s.serviceQueue, victim.RoomID)
+			s.currentService--
+
+			// 将新请求加入服务队列
+			if err := s.addToServiceQueue(roomID, speed, targetTemp, currentTemp); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+	}
+
+	// 2.时间片调度
+	s.addToWaitQueue(roomID, speed, targetTemp, currentTemp)
+	return false, nil
+}
+
 func (s *Scheduler) monitorServiceStatus() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -176,117 +275,94 @@ func (s *Scheduler) monitorServiceStatus() {
 	}
 }
 
-func (s *Scheduler) HandleRequest(roomID int, speed string, targetTemp, currentTemp float32) (bool, error) {
-	s.mu.RLock()
-	// 检查是否已在服务队列
-	if service, exists := s.serviceQueue[roomID]; exists {
-		s.mu.RUnlock()
-		s.mu.Lock()
-		if service.Speed != speed {
-			// 先记录当前服务的详单
-			if err := s.billingService.CreateDetail(roomID, service); err != nil {
-				logger.Error("创建风速切换详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+func (s *Scheduler) updateServiceStatus() {
+	for roomID, service := range s.serviceQueue {
+		service.Duration = float32(time.Since(service.StartTime).Seconds())
+
+		// 计算温度变化
+		tempDiff := service.TargetTemp - service.CurrentTemp
+
+		if math.Abs(float64(tempDiff)) < 0.05 {
+			// 温度达到目标
+			if s.billingService != nil {
+				if err := s.billingService.CreateDetail(roomID, service); err != nil {
+					logger.Error("创建目标温度达到详单失败: %v", err)
+				}
 			}
-			// 更新服务对象的开始时间和风速
-			service.StartTime = time.Now()
-			service.Speed = speed
-			service.TargetTemp = targetTemp
-		}
-		s.mu.Unlock()
-		return true, nil
-	}
-	s.mu.RUnlock()
-
-	// 检查是否在等待队列
-	if item, exists := s.waitQueueIndex[roomID]; exists {
-		s.mu.Lock()
-		if s.shouldReschedule(roomID, speed) {
-			delete(s.waitQueueIndex, roomID)
-			heap.Remove(s.waitQueue, item.indexHeap)
-			result, err := s.schedule(roomID, speed, targetTemp, currentTemp)
-			s.mu.Unlock()
-			return result, err
-		}
-		// 更新等待队列中的参数
-		item.waitObj.Speed = speed
-		item.waitObj.TargetTemp = targetTemp
-		item.priority = speedPriority[speed]
-		heap.Fix(s.waitQueue, item.indexHeap) // 重新调整堆
-		s.mu.Unlock()
-		return false, nil
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// 如果当前服务对象小于最大服务对象，直接分配
-	if s.currentService < MaxServices {
-		s.addToServiceQueue(roomID, speed, targetTemp, currentTemp)
-		return true, nil
-	}
-
-	// 否则启动调度
-	return s.schedule(roomID, speed, targetTemp, currentTemp)
-}
-
-func (s *Scheduler) schedule(roomID int, speed string, targetTemp, currentTemp float32) (bool, error) {
-	requestPriority := speedPriority[speed]
-
-	// 1.优先级调度
-	lowPriorityServices := s.findLowPriorityServices(requestPriority)
-	if len(lowPriorityServices) > 0 {
-		victim := s.selectVictim(lowPriorityServices)
-		if victim != nil {
-			//更新被抢占房间的风速
-			if err := s.roomRepo.UpdateSpeed(victim.RoomID, speed); err != nil {
-				logger.Error("Failed to update room %d speed: %v", victim.RoomID, err)
+			// 更新房间温度
+			if err := s.roomRepo.UpdateTemperature(roomID, service.TargetTemp); err != nil {
+				logger.Error("更新房间温度失败: %v", err)
 			}
-			// 将被抢占的服务对象添加到等待队列
-			s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
-			delete(s.serviceQueue, victim.RoomID)
+
+			// 更新缓存
+			s.roomTemp[roomID] = service.TargetTemp
+
+			// 从服务队列移除并处理下一个请求
+			delete(s.serviceQueue, roomID)
 			s.currentService--
+			//如果等待队列不为空，处理下一个请求
+			if s.waitQueue.Len() > 0 {
+				item := heap.Pop(s.waitQueue).(*PriorityItem)
+				wait := item.waitObj
+				delete(s.waitQueueIndex, wait.RoomID)
 
-			// 将新请求加入服务队列
-			s.addToServiceQueue(roomID, speed, targetTemp, currentTemp)
-			return true, nil
+				if err := s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp); err != nil {
+					logger.Error("添加新服务失败: %v", err)
+				}
+			}
+		} else {
+			// 温度未达目标继续调节
+			var tempChange float32
+			if tempDiff > 0 {
+				tempChange = 0.1
+			} else {
+				tempChange = -0.1
+			}
+			service.CurrentTemp += tempChange
+
+			// 更新房间温度和缓存
+			if err := s.roomRepo.UpdateTemperature(roomID, service.CurrentTemp); err != nil {
+				logger.Error("更新房间温度失败: %v", err)
+			}
+			s.roomTemp[roomID] = service.CurrentTemp
 		}
 	}
-
-	// 2.时间片调度
-	s.addToWaitQueue(roomID, speed, targetTemp, currentTemp)
-	return false, nil
 }
 
-// 时间片调度
+// handleNextRequest 处理下一个请求
+func (s *Scheduler) handleNextRequest(roomID int) {
+	// 移出服务队列时不需要再创建详单，因为已经在updateServiceStatus中创建了
+	if s.waitQueue.Len() > 0 {
+		item := heap.Pop(s.waitQueue).(*PriorityItem)
+		wait := item.waitObj
+		delete(s.waitQueueIndex, wait.RoomID)
+
+		delete(s.serviceQueue, roomID)
+		s.currentService--
+
+		if err := s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp); err != nil {
+			logger.Error("添加新服务失败: %v", err)
+		}
+	} else {
+		delete(s.serviceQueue, roomID)
+		s.currentService--
+	}
+}
+
 func (s *Scheduler) checkWaitQueue() {
 	if s.waitQueue.Len() == 0 {
 		return
 	}
-	if s.waitQueue.Len() > 0 {
-		if s.enableLogging {
-			logger.Info("Current wait queue length: %d", s.waitQueue.Len())
-		}
-		// 打印等待队列中的房间信息
-		if s.enableLogging {
-			for _, item := range *s.waitQueue {
-				logger.Info("Waiting Room %d: Speed %s, Wait duration %.1f",
-					item.roomID, item.waitObj.Speed, item.waitObj.WaitDuration)
-			}
-		}
-	}
 
-	// 更新等待时间并检查是否需要轮转
 	for _, item := range *s.waitQueue {
-		wait := item.waitObj
-		wait.WaitDuration -= 1
+		item.waitObj.WaitDuration -= 1
 
-		if wait.WaitDuration <= 0 {
+		if item.waitObj.WaitDuration <= 0 {
 			var longestServiceRoom int
 			var maxDuration float32 = 0
 
-			// 找到相同风速中服务时间最长的
 			for sRoomID, service := range s.serviceQueue {
-				if service.Speed == wait.Speed && service.Duration > maxDuration {
+				if service.Speed == item.waitObj.Speed && service.Duration > maxDuration {
 					longestServiceRoom = sRoomID
 					maxDuration = service.Duration
 				}
@@ -294,157 +370,46 @@ func (s *Scheduler) checkWaitQueue() {
 
 			if longestServiceRoom != 0 {
 				victim := s.serviceQueue[longestServiceRoom]
+				if err := s.billingService.CreateDetail(longestServiceRoom, victim); err != nil {
+					logger.Error("创建被轮转服务详单失败: %v", err)
+				}
+
 				s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
 				delete(s.serviceQueue, longestServiceRoom)
 				s.currentService--
 
-				s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp)
-				delete(s.waitQueueIndex, wait.RoomID)
+				if err := s.addToServiceQueue(item.waitObj.RoomID, item.waitObj.Speed,
+					item.waitObj.TargetTemp, item.waitObj.CurrentTemp); err != nil {
+					logger.Error("添加轮转服务失败: %v", err)
+					// 重置等待时间
+					item.waitObj.WaitDuration = s.calculateWaitDuration()
+					continue
+				}
+
+				delete(s.waitQueueIndex, item.waitObj.RoomID)
 				heap.Remove(s.waitQueue, item.indexHeap)
 			} else {
-				// 重置等待时间
-				wait.WaitDuration = s.calculateWaitDuration()
+				item.waitObj.WaitDuration = s.calculateWaitDuration()
 			}
 		}
 	}
 }
 
-// 选择牺牲者(最低优先级后时间最长)
-func (s *Scheduler) selectVictim(candidates []*ServiceObject) *ServiceObject {
-	if len(candidates) == 0 {
-		return nil
-	}
-	if len(candidates) == 1 {
-		return candidates[0]
+func (s *Scheduler) addToServiceQueue(roomID int, speed types.Speed, targetTemp, currentTemp float32) error {
+	if err := s.roomRepo.UpdateSpeed(roomID, string(speed)); err != nil {
+		return fmt.Errorf("更新房间风速失败: %v", err)
 	}
 
-	var lowPriority = math.MaxInt32
-	var sameSpeedServices []*ServiceObject
-
-	// 找出最低优先级
-	for _, service := range candidates {
-		priority := speedPriority[service.Speed]
-		if priority < lowPriority {
-			lowPriority = priority
-			sameSpeedServices = []*ServiceObject{service}
-		} else if priority == lowPriority {
-			sameSpeedServices = append(sameSpeedServices, service)
-		}
+	// 查找房间的开机时间
+	room, err := s.roomRepo.GetRoomByID(roomID)
+	if err != nil {
+		return fmt.Errorf("获取房间信息失败: %v", err)
 	}
 
-	// 在最低优先级中选择服务时间最长的
-	var victim *ServiceObject = sameSpeedServices[0]
-	var maxDuration float32 = sameSpeedServices[0].Duration
-	for _, service := range sameSpeedServices {
-		if service.Duration > maxDuration {
-			maxDuration = service.Duration
-			victim = service
-		}
-	}
-	return victim
-}
-
-// 更新服务状态
-func (s *Scheduler) updateServiceStatus() {
-	for roomID, service := range s.serviceQueue {
-		// 更新服务时长
-		service.Duration = float32(time.Since(service.StartTime).Seconds())
-
-		// 计算温度变化
-		tempRate := speedTempRate[service.Speed]
-		tempDiff := service.TargetTemp - service.CurrentTemp
-		oldTemp := service.CurrentTemp
-
-		//日志记录
-		if s.enableLogging {
-			logger.Info("Room %d: Current temp %.1f, Target temp %.1f, Speed %s",
-				roomID, service.CurrentTemp, service.TargetTemp, service.Speed)
-		}
-		// 更新温度
-		if math.Abs(float64(tempDiff)) > tempThreshold {
-			if tempDiff > 0 {
-				service.CurrentTemp += tempRate
-			} else {
-				service.CurrentTemp -= tempRate
-			}
-			if err := s.roomRepo.UpdateTemperature(roomID, service.CurrentTemp); err != nil {
-				logger.Error("Failed to update room %d temperature: %v", roomID, err)
-			}
-		} else {
-			// 温度达到目标值，服务完成
-			if err := s.billingService.CreateDetail(roomID, service); err != nil {
-				logger.Error("创建服务完成详单失败 - 房间ID: %d, 错误: %v", roomID, err)
-			}
-			//日志记录
-			if s.enableLogging {
-				logger.Info("Room %d has reached target temperature", roomID)
-			}
-			if oldTemp != service.TargetTemp {
-				service.CurrentTemp = service.TargetTemp
-				if err := s.roomRepo.UpdateTemperature(roomID, service.CurrentTemp); err != nil {
-					logger.Error("Failed to update room %d temperature: %v", roomID, err)
-				}
-			}
-			service.IsCompleted = true
-
-			// 从等待队列中选择下一个请求
-			if s.waitQueue.Len() > 0 {
-				item := heap.Pop(s.waitQueue).(*PriorityItem)
-				wait := item.waitObj
-				delete(s.waitQueueIndex, wait.RoomID)
-
-				// 更新房间风速
-				if err := s.roomRepo.UpdateSpeed(wait.RoomID, wait.Speed); err != nil {
-					logger.Error("Failed to update room %d speed: %v", wait.RoomID, err)
-				}
-
-				delete(s.serviceQueue, roomID)
-				s.currentService--
-				s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp)
-				if err := s.roomRepo.UpdateSpeed(wait.RoomID, wait.Speed); err != nil {
-					logger.Error("Failed to update room %d speed: %v", wait.RoomID, err)
-				}
-			} else {
-				if err := s.roomRepo.UpdateSpeed(roomID, ""); err != nil {
-					logger.Error("Failed to update room %d speed: %v", roomID, err)
-				}
-				delete(s.serviceQueue, roomID)
-				s.currentService--
-				if s.enableLogging {
-					logger.Info("Room %d service completed and released, no waiting requests", roomID)
-				}
-			}
-		}
-	}
-}
-
-// 辅助方法：计算等待时间
-func (s *Scheduler) calculateWaitDuration() float32 {
-	baseDuration := float32(WaitTime)
-	queueLength := s.waitQueue.Len()
-
-	if queueLength > 0 {
-		return baseDuration * (1 + float32(queueLength)*0.5)
-	}
-	return baseDuration
-}
-
-// 辅助方法：查找低优先级服务对象
-func (s *Scheduler) findLowPriorityServices(requestPriority int) []*ServiceObject {
-	services := make([]*ServiceObject, 0, len(s.serviceQueue))
-	for _, service := range s.serviceQueue {
-		if speedPriority[service.Speed] < requestPriority {
-			services = append(services, service)
-		}
-	}
-	return services
-}
-
-// 辅助方法：添加服务对象到服务队列
-func (s *Scheduler) addToServiceQueue(roomID int, speed string, targetTemp, currentTemp float32) {
 	s.serviceQueue[roomID] = &ServiceObject{
 		RoomID:      roomID,
-		StartTime:   time.Now(),
+		StartTime:   time.Now(),       // 当前服务的开始时间
+		PowerOnTime: room.CheckinTime, // 保存开机时间
 		Speed:       speed,
 		Duration:    0,
 		TargetTemp:  targetTemp,
@@ -452,13 +417,10 @@ func (s *Scheduler) addToServiceQueue(roomID int, speed string, targetTemp, curr
 		IsCompleted: false,
 	}
 	s.currentService++
-	if err := s.roomRepo.UpdateSpeed(roomID, speed); err != nil {
-		logger.Error("Failed to update room %d speed: %v", roomID, err)
-	}
+	return nil
 }
 
-// 辅助方法：添加等待对象到等待队列
-func (s *Scheduler) addToWaitQueue(roomID int, speed string, targetTemp, currentTemp float32) {
+func (s *Scheduler) addToWaitQueue(roomID int, speed types.Speed, targetTemp, currentTemp float32) {
 	waitObj := &WaitObject{
 		RoomID:       roomID,
 		RequestTime:  time.Now(),
@@ -478,8 +440,48 @@ func (s *Scheduler) addToWaitQueue(roomID int, speed string, targetTemp, current
 	s.waitQueueIndex[roomID] = item
 }
 
-// 辅助方法：判断是否需要重新调度
-func (s *Scheduler) shouldReschedule(roomID int, newSpeed string) bool {
+func (s *Scheduler) calculateWaitDuration() float32 {
+	baseDuration := float32(WaitTime)
+	queueLength := s.waitQueue.Len()
+
+	if queueLength > 0 {
+		return baseDuration * (1 + float32(queueLength)*0.5)
+	}
+	return baseDuration
+}
+
+func (s *Scheduler) findLowPriorityServices(requestPriority int) []*ServiceObject {
+	services := make([]*ServiceObject, 0)
+	for _, service := range s.serviceQueue {
+		if speedPriority[service.Speed] < requestPriority {
+			services = append(services, service)
+		}
+	}
+	return services
+}
+
+func (s *Scheduler) selectVictim(candidates []*ServiceObject) *ServiceObject {
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	var victim *ServiceObject = candidates[0]
+	var minPriority = speedPriority[victim.Speed]
+	var maxDuration float32 = victim.Duration
+
+	for _, service := range candidates {
+		priority := speedPriority[service.Speed]
+		if priority < minPriority ||
+			(priority == minPriority && service.Duration > maxDuration) {
+			victim = service
+			minPriority = priority
+			maxDuration = service.Duration
+		}
+	}
+	return victim
+}
+
+func (s *Scheduler) shouldReschedule(roomID int, newSpeed types.Speed) bool {
 	item := s.waitQueueIndex[roomID]
 	oldPriority := speedPriority[item.waitObj.Speed]
 	newPriority := speedPriority[newSpeed]
@@ -503,36 +505,6 @@ func (s *Scheduler) GetWaitQueue() []*WaitObject {
 	return result
 }
 
-// 添加获取和设置默认配置的方法
-func (s *Scheduler) GetDefaultConfig() DefaultConfig {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.defaultConfig
-}
-
-func (s *Scheduler) SetDefaultConfig(config DefaultConfig) error {
-	// 验证风速值
-	if config.DefaultSpeed != SpeedLow &&
-		config.DefaultSpeed != SpeedMedium &&
-		config.DefaultSpeed != SpeedHigh {
-		return fmt.Errorf("无效的默认风速值")
-	}
-
-	// 验证温度值
-	if config.DefaultTemp < 16 || config.DefaultTemp > 28 {
-		return fmt.Errorf("默认温度必须在16-28度之间")
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.defaultConfig = config
-	return nil
-}
-
-func (s *Scheduler) Stop() {
-	close(s.stopChan)
-}
-
 // RemoveRoom 从调度器中移除指定房间的所有请求
 func (s *Scheduler) RemoveRoom(roomID int) {
 	s.mu.Lock()
@@ -540,20 +512,21 @@ func (s *Scheduler) RemoveRoom(roomID int) {
 
 	// 从服务队列中移除
 	if service, exists := s.serviceQueue[roomID]; exists {
-		//当服务完成或者被中断的时候创建详单数据
-		if err := s.billingService.CreateDetail(roomID, service); err != nil {
-			logger.Error("创建最终详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+		if s.billingService != nil {
+			if err := s.billingService.CreateDetail(roomID, service); err != nil {
+				logger.Error("创建最终详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+			}
 		}
 		delete(s.serviceQueue, roomID)
 		s.currentService--
-		logger.Info("Room %d removed from service queue", roomID)
+		logger.Info("房间 %d 从服务队列中移除", roomID)
 	}
 
 	// 从等待队列中移除
 	if item, exists := s.waitQueueIndex[roomID]; exists {
 		heap.Remove(s.waitQueue, item.indexHeap)
 		delete(s.waitQueueIndex, roomID)
-		logger.Info("Room %d removed from wait queue", roomID)
+		logger.Info("房间 %d 从等待队列中移除", roomID)
 	}
 
 	// 尝试从等待队列中选择下一个请求
@@ -562,7 +535,106 @@ func (s *Scheduler) RemoveRoom(roomID int) {
 		wait := item.waitObj
 		delete(s.waitQueueIndex, wait.RoomID)
 
-		s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp)
-		logger.Info("Room %d promoted from wait queue to service queue", wait.RoomID)
+		if err := s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp); err != nil {
+			logger.Error("添加新服务失败 - 房间ID: %d, 错误: %v", wait.RoomID, err)
+		} else {
+			logger.Info("房间 %d 从等待队列提升至服务队列", wait.RoomID)
+		}
+	}
+}
+
+// SetLogging 设置是否启用日志
+func (s *Scheduler) SetLogging(enable bool) {
+	s.mu.Lock()
+	s.enableLogging = enable
+	s.mu.Unlock()
+}
+
+// Stop 停止调度器
+func (s *Scheduler) Stop() {
+	if s.tempTicker != nil {
+		s.tempTicker.Stop()
+	}
+	close(s.stopChan)
+}
+
+// handleTemperatureRecovery 处理回温
+func (s *Scheduler) handleTemperatureRecovery() {
+	// 1. 获取当前在服务队列中的房间列表
+	s.mu.RLock()
+	serviceRooms := make(map[int]struct{})
+	for roomID := range s.serviceQueue {
+		serviceRooms[roomID] = struct{}{}
+	}
+	s.mu.RUnlock()
+
+	// 2. 获取所有房间信息
+	rooms, err := s.roomRepo.GetAllRooms()
+	if err != nil {
+		logger.Error("获取房间列表失败: %v", err)
+		return
+	}
+
+	for _, room := range rooms {
+		// 3. 如果房间在服务队列中，跳过处理
+		if _, inService := serviceRooms[room.RoomID]; inService {
+			continue
+		}
+
+		s.mu.Lock()
+
+		// 4. 计算房间温度与初始温度的差值
+		currentTemp := room.CurrentTemp
+		initialTemp := room.InitialTemp
+		tempDiff := currentTemp - initialTemp // 正值表示高于初始温度，需要降温；负值表示低于初始温度，需要回暖
+
+		// 6. 按照回温速率调整温度
+		var newTemp float32
+		if tempDiff > 0 { // 当前温度高于初始温度，需要降温
+			newTemp = currentTemp - s.tempRecoveryRate
+			if newTemp < initialTemp {
+				newTemp = initialTemp
+			}
+		} else { // 当前温度低于初始温度，需要回暖
+			newTemp = currentTemp + s.tempRecoveryRate
+			if newTemp > initialTemp {
+				newTemp = initialTemp
+			}
+		}
+
+		// 7. 更新房间温度
+		if err := s.roomRepo.UpdateTemperature(room.RoomID, newTemp); err != nil {
+			logger.Error("更新房间温度失败 - 房间ID: %d, 错误: %v", room.RoomID, err)
+			s.mu.Unlock()
+			continue
+		}
+
+		s.mu.Unlock()
+
+		// 8. 如果房间开着空调且温差>=1度，尝试申请服务
+		if room.ACState == 1 && math.Abs(float64(currentTemp-room.TargetTemp)) >= 1.0 {
+			s.mu.RLock()
+			// 确认不在等待队列中才尝试申请服务
+			if _, waiting := s.waitQueueIndex[room.RoomID]; !waiting {
+				s.mu.RUnlock()
+
+				// 获取当前风速或使用默认中速
+				speed := types.SpeedMedium
+				if room.CurrentSpeed != "" {
+					speed = types.Speed(room.CurrentSpeed)
+				}
+
+				// 尝试申请服务
+				if _, err := s.HandleRequest(room.RoomID, speed, room.TargetTemp, newTemp); err != nil {
+					logger.Error("房间 %d 自动请求服务失败: %v", room.RoomID, err)
+				} else {
+					logger.Info("房间 %d 空调开启且温差超过1度，自动请求服务 (当前: %.1f°C, 目标: %.1f°C)",
+						room.RoomID, newTemp, room.TargetTemp)
+				}
+			} else {
+				s.mu.RUnlock()
+			}
+		}
+
 	}
 }
