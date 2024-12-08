@@ -339,3 +339,45 @@ func (c *ACController) validateConfig(config types.Config) error {
 
 	return nil
 }
+
+func (s *ACService) GetACStatus(roomID int) (*ACStatus, error) {
+	// 获取房间状态
+	room, err := s.roomRepo.GetRoomByID(roomID)
+	if err != nil {
+		return nil, fmt.Errorf("获取房间信息失败: %v", err)
+	}
+
+	// 获取空调控制器状态
+	state, err := s.controller.GetState(roomID)
+	if err != nil {
+		return nil, fmt.Errorf("获取空调状态失败: %v", err)
+	}
+
+	// 计算当前费用
+	var currentFee, totalFee float32 = 0, 0
+	if room.ACState == 1 {
+		// 计算当前开机的费用
+		currentFee, err = s.CalculateFee(roomID)
+		if err != nil {
+			logger.Error("计算当前费用失败: %v", err)
+		}
+
+		// 获取总费用(从入住时间到现在的所有费用)
+		totalFee, err = s.detailRepo.GetTotalCost(roomID, room.CheckinTime, time.Now())
+		if err != nil {
+			logger.Error("计算总费用失败: %v", err)
+		}
+	}
+
+	status := &ACStatus{
+		CurrentTemp:  state.CurrentTemp,
+		TargetTemp:   state.TargetTemp,
+		CurrentSpeed: state.Speed,
+		Mode:         state.Mode,
+		CurrentFee:   currentFee,
+		TotalFee:     totalFee,
+		PowerState:   state.PowerState,
+	}
+
+	return status, nil
+}

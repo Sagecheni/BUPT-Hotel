@@ -48,6 +48,17 @@ type Config struct {
 	Rates        map[Speed]float32  // 不同风速的费率
 }
 
+// ACStatus 空调状态结构体
+type ACStatus struct {
+	CurrentTemp  float32
+	TargetTemp   float32
+	CurrentSpeed types.Speed
+	Mode         types.Mode
+	CurrentFee   float32
+	TotalFee     float32
+	PowerState   bool
+}
+
 // Controller 空调控制接口
 type Controller interface {
 	// 中央空调控制

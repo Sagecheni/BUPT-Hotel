@@ -13,19 +13,16 @@ func SetupRouter() *gin.Engine {
 
 	router := gin.Default()
 	// 创建处理器实例
-	acHandler := handlers.NewACHandler(service.GetScheduler())
+	acHandler := handlers.NewACHandler()
 	roomHandler := handlers.NewRoomHandler()
 
 	// 空调控制面板相关路由组
 	panel := router.Group("/panel")
 	{
 		// 开关机
-		panel.POST("/poweron", acHandler.PowerOn)
-		panel.POST("/poweroff", acHandler.PowerOff)
+		panel.POST("/poweron", acHandler.PanelPowerOn)
+		panel.POST("/poweroff", acHandler.PanelPowerOff)
 
-		// 温度和风速调节
-		panel.POST("/changetemp", acHandler.ChangeTemperature)
-		panel.POST("/changespeed", acHandler.ChangeSpeed)
 	}
 
 	// 房间管理相关路由组
@@ -33,6 +30,10 @@ func SetupRouter() *gin.Engine {
 	{
 		room.POST("/checkin", roomHandler.CheckIn)
 		room.POST("/checkout", roomHandler.CheckOut)
+	}
+	admin := router.Group("/admin")
+	{
+		admin.POST("/adminpoweron", acHandler.AdminPowerOn)
 	}
 
 	return router

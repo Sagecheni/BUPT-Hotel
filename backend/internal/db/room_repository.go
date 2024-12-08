@@ -144,7 +144,7 @@ func (r *RoomRepository) PowerOnAC(roomID int, mode string, defaultTemp float32)
 			"ac_state":      1,           // 开机状态
 			"mode":          mode,        // 工作模式
 			"target_temp":   defaultTemp, // 目标温度设为默认温度
-			"current_speed": "",          // 初始无风速
+			"current_speed": "中",         // 初始中风速
 		}
 
 		if err := tx.Model(&RoomInfo{}).Where("room_id = ?", roomID).Updates(updates).Error; err != nil {

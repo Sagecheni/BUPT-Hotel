@@ -1,38 +1,40 @@
-// internal/ac/service.go
+// internal/ac/ac_service.go
 
 package ac
 
 import (
+	"backend/internal/db"
 	"backend/internal/logger"
 	"backend/internal/service"
 	"backend/internal/types"
 	"fmt"
+	"sync"
 	"time"
 )
 
-// ExtendedState 扩展状态信息
-type ExtendedState struct {
-	RoomState     *types.State
-	CentralACOn   bool
-	CentralACMode types.Mode
-	InService     bool
-	QueueStatus   string
-}
+var (
+	acService *ACService
+	acOnce    sync.Once
+)
 
-// ACService 协调 Controller 和 Scheduler
 type ACService struct {
 	controller Controller
 	scheduler  *service.Scheduler
+	detailRepo *db.DetailRepository
+	roomRepo   *db.RoomRepository
 }
 
-// NewACService 创建新的 ACService
-func NewACService() *ACService {
-	controller := NewController()
-	scheduler := service.NewScheduler()
-	return &ACService{
-		controller: controller,
-		scheduler:  scheduler,
-	}
+// GetACService 获取 ACService 单例
+func GetACService() *ACService {
+	acOnce.Do(func() {
+		acService = &ACService{
+			controller: NewController(),
+			scheduler:  service.GetScheduler(), // 使用已有的调度器单例
+			detailRepo: db.NewDetailRepository(),
+			roomRepo:   db.NewRoomRepository(),
+		}
+	})
+	return acService
 }
 
 // StartCentralAC 启动中央空调
@@ -59,6 +61,17 @@ func (s *ACService) PowerOn(roomID int) error {
 	isOn, _ := s.controller.GetCentralACState()
 	if !isOn {
 		return fmt.Errorf("中央空调未开启")
+	}
+
+	// 获取房间状态
+	room, err := s.roomRepo.GetRoomByID(roomID)
+	if err != nil {
+		return fmt.Errorf("获取房间信息失败: %v", err)
+	}
+
+	// 创建开机详单
+	if err := s.createPowerOnDetail(roomID, room.CurrentTemp); err != nil {
+		return fmt.Errorf("创建开机详单失败: %v", err)
 	}
 
 	// 开启房间空调
@@ -103,9 +116,21 @@ func (s *ACService) PowerOn(roomID int) error {
 
 // PowerOff 关闭房间空调
 func (s *ACService) PowerOff(roomID int) error {
-	// 先从调度器中移除
+	// 获取房间当前状态
+	state, err := s.controller.GetState(roomID)
+	if err != nil {
+		return fmt.Errorf("获取房间状态失败: %v", err)
+	}
+
+	// 创建关机详单
+	if err := s.createPowerOffDetail(roomID, state.CurrentTemp, state.Speed); err != nil {
+		return fmt.Errorf("创建关机详单失败: %v", err)
+	}
+
+	// 从调度器中移除
 	s.scheduler.RemoveRoom(roomID)
-	// 再关闭空调
+
+	// 关闭空调
 	return s.controller.PowerOff(roomID)
 }
 
@@ -182,49 +207,9 @@ func (s *ACService) SetFanSpeed(roomID int, speed types.Speed) error {
 	return s.controller.SetFanSpeed(roomID, speed)
 }
 
-// GetState 获取空调状态（包括中央空调和房间空调状态）
-func (s *ACService) GetState(roomID int) (*ExtendedState, error) {
-	centralACOn, centralACMode := s.controller.GetCentralACState()
-	roomState, err := s.controller.GetState(roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	inService, queueStatus, err := s.getQueueStatus(roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ExtendedState{
-		RoomState:     roomState,
-		CentralACOn:   centralACOn,
-		CentralACMode: centralACMode,
-		InService:     inService,
-		QueueStatus:   queueStatus,
-	}, nil
-}
-
 // GetQueueInfo 获取队列状态
 func (s *ACService) GetQueueInfo() (map[int]*service.ServiceObject, []*service.WaitObject) {
 	return s.scheduler.GetServiceQueue(), s.scheduler.GetWaitQueue()
-}
-
-// getQueueStatus 获取指定房间的队列状态
-func (s *ACService) getQueueStatus(roomID int) (bool, string, error) {
-	serviceQueue := s.scheduler.GetServiceQueue()
-	waitQueue := s.scheduler.GetWaitQueue()
-
-	if _, inService := serviceQueue[roomID]; inService {
-		return true, "服务中", nil
-	}
-
-	for _, wait := range waitQueue {
-		if wait.RoomID == roomID {
-			return false, fmt.Sprintf("等待中，预计等待时间 %.1f 秒", wait.WaitDuration), nil
-		}
-	}
-
-	return false, "未在队列中", nil
 }
 
 // CalculateFee 计算费用
@@ -239,6 +224,87 @@ func (s *ACService) CalculateFee(roomID int) (float32, error) {
 	}
 
 	return s.controller.CalculateFee(roomID, time.Second)
+}
+
+// createPowerOnDetail 创建开机详单
+func (s *ACService) createPowerOnDetail(roomID int, currentTemp float32) error {
+	detail := &db.Detail{
+		RoomID:      roomID,
+		QueryTime:   time.Now(),
+		StartTime:   time.Now(),
+		EndTime:     time.Now(),
+		ServeTime:   0,
+		Speed:       "",
+		Cost:        0,
+		Rate:        0,
+		TempChange:  0,
+		CurrentTemp: currentTemp,
+		DetailType:  db.DetailTypePowerOn,
+	}
+
+	if err := s.detailRepo.CreateDetail(detail); err != nil {
+		logger.Error("创建开机详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+		return err
+	}
+
+	logger.Info("创建开机详单成功 - 房间ID: %d", roomID)
+	return nil
+}
+
+// createPowerOffDetail 创建关机详单
+func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, speed types.Speed) error {
+	// 获取最后一条详单记录
+	lastDetail, err := s.detailRepo.GetLatestDetail(roomID)
+	if err != nil {
+		logger.Error("获取最近详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+		return err
+	}
+
+	// 计算相关数据
+	now := time.Now()
+	var serveTime float32 = 0
+	var tempChange float32 = 0
+	var startTime time.Time = now
+
+	if lastDetail != nil {
+		serveTime = float32(now.Sub(lastDetail.StartTime).Minutes())
+		tempChange = currentTemp - lastDetail.CurrentTemp
+		startTime = lastDetail.StartTime
+	}
+
+	// 获取费率
+	config := s.controller.GetConfig()
+	rate := config.Rates[speed]
+
+	// 计算费用
+	cost := rate * float32(tempChange)
+	if cost < 0 {
+		cost = -cost // 确保费用为正数
+	}
+	cost *= serveTime // 乘以服务时长
+
+	detail := &db.Detail{
+		RoomID:      roomID,
+		QueryTime:   now,
+		StartTime:   startTime,
+		EndTime:     now,
+		ServeTime:   serveTime,
+		Speed:       string(speed),
+		Cost:        cost,
+		Rate:        rate,
+		TempChange:  tempChange,
+		CurrentTemp: currentTemp,
+		DetailType:  db.DetailTypePowerOff,
+	}
+
+	if err := s.detailRepo.CreateDetail(detail); err != nil {
+		logger.Error("创建关机详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+		return err
+	}
+
+	logger.Info("创建关机详单成功 - 房间ID: %d, 服务时长: %.1f分钟, 费用: %.2f元",
+		roomID, serveTime, cost)
+	return nil
 }
 
 // GetConfig 获取空调配置

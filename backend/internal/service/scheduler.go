@@ -277,7 +277,7 @@ func (s *Scheduler) updateServiceStatus() {
 		if math.Abs(float64(tempDiff)) < 0.05 {
 			// 温度达到目标
 			if s.billingService != nil {
-				if err := s.billingService.CreateDetail(roomID, service, db.DetailTypePowerOn); err != nil {
+				if err := s.billingService.CreateDetail(roomID, service, db.DetailTypeTargetReached); err != nil {
 					logger.Error("创建目标温度达到详单失败: %v", err)
 				}
 			}
