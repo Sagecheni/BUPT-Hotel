@@ -9,7 +9,6 @@ import (
 	"backend/internal/types"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -166,38 +165,8 @@ func (h *ACHandler) PowerOn(c *gin.Context) {
 		return
 	}
 
-	// 获取账单服务
-	billingService := service.GetBillingService()
-
-	// 获取费用信息
-	bill, err := billingService.GenerateBill(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取账单失败",
-		})
-		return
-	}
-
-	// 获取当前费用（本次开机到现在的费用）
-	var currentCost float32 = 0
-	details, err := billingService.GetDetails(req.RoomNumber, time.Now(), time.Now())
-	if err == nil && len(details) > 0 {
-		for _, detail := range details {
-			currentCost += detail.Cost
-		}
-	}
-
-	// 构造返回结果
-	response := PowerOnResponse{
-		CurrentCost:        currentCost,
-		CurrentFanSpeed:    fanSpeedMap[string(ac.DefaultConfig.DefaultSpeed)], // 转换为中文
-		CurrentTemperature: room.CurrentTemp,
-		OperationMode:      modeMap[room.Mode], // 转换为中文
-		TargetTemperature:  ac.DefaultConfig.DefaultTemp,
-		TotalCost:          bill.TotalCost,
-	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "空调开启成功"})
 }
 
 func (h *ACHandler) PowerOff(c *gin.Context) {
@@ -226,37 +195,6 @@ func (h *ACHandler) PowerOff(c *gin.Context) {
 		return
 	}
 
-	// 获取账单服务
-	billingService := service.GetBillingService()
-
-	// 获取账单信息
-	bill, err := billingService.GenerateBill(req.RoomNumber)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取账单失败",
-		})
-		return
-	}
-
-	// 计算本次开机的费用
-	var currentCost float32 = 0
-	if len(bill.Details) > 0 {
-		lastPowerOnTime := room.CheckinTime // 默认使用入住时间
-		// 查找最后一次开机的时间
-		for _, detail := range bill.Details {
-			if detail.StartTime.After(lastPowerOnTime) {
-				lastPowerOnTime = detail.StartTime
-			}
-		}
-		// 获取这段时间内的消费
-		details, err := billingService.GetDetails(req.RoomNumber, lastPowerOnTime, time.Now())
-		if err == nil {
-			for _, detail := range details {
-				currentCost += detail.Cost
-			}
-		}
-	}
-
 	// 从调度队列中移除房间
 	service.GetScheduler().RemoveRoom(req.RoomNumber)
 
@@ -269,13 +207,8 @@ func (h *ACHandler) PowerOff(c *gin.Context) {
 		return
 	}
 
-	// 构造返回结果
-	response := PowerOffResponse{
-		CurrentCost: currentCost,
-		TotalCost:   bill.TotalCost,
-	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "空调关闭成功"})
 }
 
 // 设置空调模式

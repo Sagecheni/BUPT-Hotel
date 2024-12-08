@@ -157,7 +157,7 @@ func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, cur
 		s.mu.Lock()
 		if service.Speed != speed {
 			// 记录当前服务的详单
-			if err := s.billingService.CreateDetail(roomID, service); err != nil {
+			if err := s.billingService.CreateDetail(roomID, service, db.DetailTypeSpeedChange); err != nil {
 				logger.Error("创建风速切换详单失败 - 房间ID: %d, 错误: %v", roomID, err)
 			}
 			// 更新服务对象
@@ -200,11 +200,6 @@ func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, cur
 		if err := s.addToServiceQueue(roomID, speed, targetTemp, currentTemp); err != nil {
 			return false, err
 		}
-		// 创建开机详单
-		initialService := s.serviceQueue[roomID]
-		if err := s.billingService.CreateDetail(roomID, initialService); err != nil {
-			logger.Error("创建开机详单失败 - 房间ID: %d, 错误: %v", roomID, err)
-		}
 		return true, nil
 	}
 
@@ -236,9 +231,6 @@ func (s *Scheduler) schedule(roomID int, speed types.Speed, targetTemp, currentT
 	if len(lowPriorityServices) > 0 {
 		victim := s.selectVictim(lowPriorityServices)
 		if victim != nil {
-			if err := s.billingService.CreateDetail(victim.RoomID, victim); err != nil {
-				logger.Error("创建被抢占服务详单失败: %v", err)
-			}
 
 			// 将被抢占的服务对象添加到等待队列
 			s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
@@ -285,7 +277,7 @@ func (s *Scheduler) updateServiceStatus() {
 		if math.Abs(float64(tempDiff)) < 0.05 {
 			// 温度达到目标
 			if s.billingService != nil {
-				if err := s.billingService.CreateDetail(roomID, service); err != nil {
+				if err := s.billingService.CreateDetail(roomID, service, db.DetailTypePowerOn); err != nil {
 					logger.Error("创建目标温度达到详单失败: %v", err)
 				}
 			}
@@ -329,26 +321,6 @@ func (s *Scheduler) updateServiceStatus() {
 	}
 }
 
-// handleNextRequest 处理下一个请求
-func (s *Scheduler) handleNextRequest(roomID int) {
-	// 移出服务队列时不需要再创建详单，因为已经在updateServiceStatus中创建了
-	if s.waitQueue.Len() > 0 {
-		item := heap.Pop(s.waitQueue).(*PriorityItem)
-		wait := item.waitObj
-		delete(s.waitQueueIndex, wait.RoomID)
-
-		delete(s.serviceQueue, roomID)
-		s.currentService--
-
-		if err := s.addToServiceQueue(wait.RoomID, wait.Speed, wait.TargetTemp, wait.CurrentTemp); err != nil {
-			logger.Error("添加新服务失败: %v", err)
-		}
-	} else {
-		delete(s.serviceQueue, roomID)
-		s.currentService--
-	}
-}
-
 func (s *Scheduler) checkWaitQueue() {
 	if s.waitQueue.Len() == 0 {
 		return
@@ -370,9 +342,6 @@ func (s *Scheduler) checkWaitQueue() {
 
 			if longestServiceRoom != 0 {
 				victim := s.serviceQueue[longestServiceRoom]
-				if err := s.billingService.CreateDetail(longestServiceRoom, victim); err != nil {
-					logger.Error("创建被轮转服务详单失败: %v", err)
-				}
 
 				s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
 				delete(s.serviceQueue, longestServiceRoom)
@@ -511,12 +480,7 @@ func (s *Scheduler) RemoveRoom(roomID int) {
 	defer s.mu.Unlock()
 
 	// 从服务队列中移除
-	if service, exists := s.serviceQueue[roomID]; exists {
-		if s.billingService != nil {
-			if err := s.billingService.CreateDetail(roomID, service); err != nil {
-				logger.Error("创建最终详单失败 - 房间ID: %d, 错误: %v", roomID, err)
-			}
-		}
+	if _, exists := s.serviceQueue[roomID]; exists {
 		delete(s.serviceQueue, roomID)
 		s.currentService--
 		logger.Info("房间 %d 从服务队列中移除", roomID)
