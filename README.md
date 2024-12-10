@@ -13,45 +13,54 @@
 
 - [2024-11-29]完成了费用计算和详单系统的实现。
 
+- [2024-12-10]将ac模块合并进service模块，因为service 和 ac经常有冲突，考虑到ac模块其实比较小，所以直接做了迁移。
+
+- [2024-12-11]其实计费逻辑写了几天，因为生病的原因，效率一直比较低。一直在研究应该如何使用详单这个系统去计费，总是能整出重复计费的这种活，后面还是修复了，历史计费采用了开机-关机每段计费，然后当前开机的服务就采用了开机到Now的详单+CurrentFee费用计费，目前来看是正常的。正在为ac模块提供相关的接口。
+
 # 后端架构
 ```
 backend
-├── api
-│   └── router.go
-├── cmd
-│   ├── hotel.db
-│   ├── launch.sh
-│   ├── logs
-│   │   └── 2024-11-30.log
-│   └── main.go
-├── docs
-├── go.mod
-├── go.sum
-├── internal
-│   ├── db
-│   │   ├── init.go
-│   │   ├── model.go
-│   │   └── room_repository.go
-│   ├── handlers
-│   │   ├── ac_handler.go
-│   │   ├── common.go
-│   │   └── room_handler.go
-│   ├── logger
-│   │   └── logger.go
-│   └── service
-│       ├── monitor.go
-│       ├── old_scheduler
-│       ├── scheduler.go
-│       ├── scheduler_test.go
-│       └── service.go
-└── tests
+    ├── api
+    │   └── router.go
+    ├── cmd
+    │   ├── hotel.db
+    │   ├── launch.sh
+    │   ├── logs
+    │   └── main.go
+    ├── docs
+    ├── go.mod
+    ├── go.sum
+    ├── internal
+    │   ├── db
+    │   │   ├── detail_repository.go
+    │   │   ├── init.go
+    │   │   ├── model.go
+    │   │   └── room_repository.go
+    │   ├── handlers
+    │   │   ├── ac_handler.go
+    │   │   ├── common.go
+    │   │   └── room_handler.go
+    │   ├── logger
+    │   │   └── logger.go
+    │   ├── service
+    │   │   ├── ac_service.go
+    │   │   ├── billing.go
+    │   │   ├── monitor.go
+    │   │   ├── old_scheduler
+    │   │   ├── scheduler.go
+    │   │   └── service.go
+    │   └── types
+    │       └── ac_types.go
+    ├── middleware
+    │   └── cors.go
+    └── tests
 ```
 说明：
 - /cmd - 项目的启动文件
 - /internal - 私有的代码库
     - /db - 数据库相关
     - /handler - 接口设计相关
-    - /service - 服务层(监视器，调度器所在)
+    - /service - 服务层(监视器，调度器，空调控制器)
 - /api - api的相关定义
 - /docs - 文档所在
 

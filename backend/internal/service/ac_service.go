@@ -234,49 +234,56 @@ func (s *ACService) PowerOff(roomID int) error {
 	return nil
 }
 
-// SetTemperature 设置温度
-func (s *ACService) SetTemperature(roomID int, temp float32) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// SetTemperature 设置目标温度
+func (s *ACService) SetTemperature(roomID int, targetTemp float32) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
 
-	if !s.centralACState.isOn {
-		return fmt.Errorf("中央空调未开启")
-	}
+    if !s.centralACState.isOn {
+        return fmt.Errorf("中央空调未开启")
+    }
 
-	room, err := s.roomRepo.GetRoomByID(roomID)
-	if err != nil {
-		return fmt.Errorf("获取房间信息失败: %v", err)
-	}
+    room, err := s.roomRepo.GetRoomByID(roomID)
+    if err != nil {
+        return fmt.Errorf("获取房间信息失败: %v", err)
+    }
 
-	if room.ACState != 1 {
-		return fmt.Errorf("空调未开启")
-	}
+    if room.ACState != 1 {
+        return fmt.Errorf("空调未开启")
+    }
 
-	if !s.isValidTemp(types.Mode(room.Mode), temp) {
-		return fmt.Errorf("温度 %.1f°C 超出当前模式允许范围", temp)
-	}
+    if !s.isValidTemp(types.Mode(room.Mode), targetTemp) {
+        return fmt.Errorf("温度 %.1f°C 超出当前模式允许范围", targetTemp)
+    }
 
-	inService, err := s.scheduler.HandleRequest(
-		roomID,
-		types.Speed(room.CurrentSpeed),
-		temp,
-		room.CurrentTemp,
-	)
-	if err != nil {
-		return err
-	}
+    // 更新房间的目标温度
+    if err := s.roomRepo.UpdateRoom(&db.RoomInfo{
+        RoomID:     roomID,
+        TargetTemp: targetTemp,
+    }); err != nil {
+        return fmt.Errorf("更新目标温度失败: %v", err)
+    }
 
-	if !inService {
-		logger.Info("房间 %d 温度调节请求已加入等待队列", roomID)
-		return nil
-	}
+    // 将温度调节请求发送给调度器
+    inService, err := s.scheduler.HandleRequest(
+        roomID,
+        types.Speed(room.CurrentSpeed),
+        targetTemp,
+        room.CurrentTemp,
+    )
+    if err != nil {
+        return fmt.Errorf("处理温度调节请求失败: %v", err)
+    }
 
-	if err := s.roomRepo.UpdateTemperature(roomID, temp); err != nil {
-		return fmt.Errorf("更新温度失败: %v", err)
-	}
+    if !inService {
+        logger.Info("房间 %d 温度调节请求已加入等待队列 (目标温度: %.1f°C)", 
+            roomID, targetTemp)
+        return nil
+    }
 
-	logger.Info("房间 %d 设置温度为 %.1f°C 成功", roomID, temp)
-	return nil
+    logger.Info("房间 %d 温度调节请求已开始处理 (目标温度: %.1f°C)", 
+        roomID, targetTemp)
+    return nil
 }
 
 // SetFanSpeed 设置风速
@@ -329,11 +336,16 @@ func (s *ACService) GetACStatus(roomID int) (*ACStatus, error) {
 
 	var currentFee, totalFee float32 = 0, 0
 	if room.ACState == 1 {
-		if bill, err := s.billing.CalculateCurrentFee(roomID); err == nil {
-			currentFee = bill.CurrentFee
-			totalFee = bill.TotalFee
-		} else {
-			logger.Error("计算费用失败: %v", err)
+		// 获取当前费用
+		currentFee, err = s.billing.CalculateCurrentSessionFee(roomID)
+		if err != nil {
+			logger.Error("计算当前费用失败: %v", err)
+		}
+
+		// 获取总费用
+		totalFee, err = s.billing.CalculateTotalFee(roomID)
+		if err != nil {
+			logger.Error("计算总费用失败: %v", err)
 		}
 	}
 
@@ -436,9 +448,13 @@ func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, speed 
 	serveTime := float32(now.Sub(powerOnDetail.StartTime).Minutes())
 	tempChange := currentTemp - powerOnDetail.CurrentTemp
 
+	// 获取当前费用作为本次关机时的费用
+	currentFee, err := s.billing.CalculateCurrentSessionFee(roomID)
+	if err != nil {
+		logger.Error("计算当前费用失败 - 房间ID: %d, 错误: %v", roomID, err)
+		return err
+	}
 	rate := s.config.Rates[speed]
-	result, _ := s.billing.CalculateCurrentFee(roomID)
-	cost := result.CurrentFee
 	// 创建关机详单
 	detail := &db.Detail{
 		RoomID:      roomID,
@@ -447,7 +463,7 @@ func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, speed 
 		EndTime:     now,
 		ServeTime:   serveTime,
 		Speed:       string(speed),
-		Cost:        float32(cost),
+		Cost:        float32(currentFee),
 		Rate:        rate,
 		TempChange:  tempChange,
 		CurrentTemp: currentTemp,
@@ -460,7 +476,7 @@ func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, speed 
 	}
 
 	logger.Info("创建关机详单成功 - 房间ID: %d, 服务时长: %.1f分钟, 费用: %.2f元",
-		roomID, serveTime, cost)
+		roomID, serveTime, currentFee)
 	return nil
 }
 

@@ -72,9 +72,15 @@ func (s *MonitorService) logAllRoomStatus() {
 		// 获取账单信息
 		var currentFee, totalFee float32 = 0, 0
 		if billingService != nil {
-			if bill, err := billingService.CalculateCurrentFee(room.RoomID); err == nil {
-				currentFee = bill.CurrentFee
-				totalFee = bill.TotalFee
+			// 使用新的独立方法获取费用
+			currentFee, err = billingService.CalculateCurrentSessionFee(room.RoomID)
+			if err != nil {
+				logger.Error("计算当前费用失败: %v", err)
+			}
+
+			totalFee, err = billingService.CalculateTotalFee(room.RoomID)
+			if err != nil {
+				logger.Error("计算总费用失败: %v", err)
 			}
 		}
 

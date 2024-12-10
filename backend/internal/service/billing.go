@@ -57,85 +57,145 @@ func NewBillingService(scheduler *Scheduler) *BillingService {
 		scheduler:  scheduler,
 	}
 }
+// CalculateCurrentSessionFee 计算本次开机会话的费用（从开机到现在）
+func (s *BillingService) CalculateCurrentSessionFee(roomID int) (float32, error) {
+    room, err := s.roomRepo.GetRoomByID(roomID)
+    if err != nil {
+        return 0, fmt.Errorf("获取房间信息失败: %v", err)
+    }
 
-// CalculateCurrentFee 计算实时费用
-func (s *BillingService) CalculateCurrentFee(roomID int) (*CurrentBill, error) {
-	room, err := s.roomRepo.GetRoomByID(roomID)
-	if err != nil {
-		return nil, fmt.Errorf("获取房间信息失败: %v", err)
-	}
+    // 空调关闭时，当前费用为0
+    if room.ACState != 1 {
+        return 0, nil
+    }
 
-	// 获取本次入住以来的所有详单记录
-	details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(
-		roomID,
-		room.CheckinTime,
-		time.Now(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("获取详单记录失败: %v", err)
-	}
+    // 获取本次开机以来的所有详单记录
+    details, err := s.getDetailsSinceLastPowerOn(roomID)
+    if err != nil {
+        return 0, fmt.Errorf("获取详单记录失败: %v", err)
+    }
 
-	result := &CurrentBill{
-		RoomID:      roomID,
-		CurrentFee:  0,
-		TotalFee:    0,
-		LastBilled:  time.Now(),
-		IsInService: false,
-	}
+    // 计算已产生的详单费用
+    var currentFee float32
+    for _, detail := range details {
+        if detail.DetailType != db.DetailTypePowerOn {
+            currentFee += detail.Cost
+        }
+    }
 
-	// 如果空调关闭，只返回历史总费用
-	if room.ACState != 1 {
-		// 累计所有已完成的详单费用（不包括当前开机session的费用）
-		var totalFee float32
-		for _, detail := range details {
-			if detail.DetailType != db.DetailTypePowerOn {
-				totalFee += detail.Cost
-			}
-		}
-		result.TotalFee = roundTo2Decimals(totalFee)
-		return result, nil
-	}
+    // 如果在服务队列中，计算实时费用
+    if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
+        duration := float32(time.Since(serviceObj.StartTime).Minutes())
+        rate := speedToRate[string(serviceObj.Speed)]
+        currentServiceFee := roundTo2Decimals(duration * rate)
+        currentFee = roundTo2Decimals(currentFee + currentServiceFee)
+    }
 
-	// 找到最后一次开机时间
-	var lastPowerOnTime time.Time
-	for i := len(details) - 1; i >= 0; i-- {
-		if details[i].DetailType == db.DetailTypePowerOn {
-			lastPowerOnTime = details[i].StartTime
-			break
-		}
-	}
-	if lastPowerOnTime.IsZero() {
-		lastPowerOnTime = room.CheckinTime
-	}
+    return currentFee, nil
+}
 
-	// 分别计算历史总费用和当前开机的费用
-	var totalFee, currentFee float32
-	for _, detail := range details {
-		// 历史费用只计算非PowerOn类型的详单
-		if detail.DetailType != db.DetailTypePowerOn {
-			// 对于当前开机session之前的详单计入总费用
-			if detail.StartTime.Before(lastPowerOnTime) {
-				totalFee += detail.Cost
-			} else {
-				// 当前开机session的费用计入currentFee
-				currentFee += detail.Cost
-			}
-		}
-	}
+// getDetailsSinceLastPowerOn 获取最近一次开机以来的所有详单
+func (s *BillingService) getDetailsSinceLastPowerOn(roomID int) ([]db.Detail, error) {
+    room, err := s.roomRepo.GetRoomByID(roomID)
+    if err != nil {
+        return nil, err
+    }
 
-	// 如果在服务队列中，计算实时费用
-	if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
-		result.IsInService = true
-		duration := float32(time.Since(serviceObj.StartTime).Minutes())
-		rate := speedToRate[string(serviceObj.Speed)]
-		currentServiceFee := roundTo2Decimals(duration * rate)
-		currentFee = roundTo2Decimals(currentFee + currentServiceFee)
-	}
+    details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(
+        roomID,
+        room.CheckinTime,
+        time.Now(),
+    )
+    if err != nil {
+        return nil, err
+    }
 
-	result.CurrentFee = roundTo2Decimals(currentFee)
-	result.TotalFee = roundTo2Decimals(totalFee + currentFee)
+    // 找到最后一次开机时间
+    var lastPowerOnTime time.Time
+    for i := len(details) - 1; i >= 0; i-- {
+        if details[i].DetailType == db.DetailTypePowerOn {
+            lastPowerOnTime = details[i].StartTime
+            break
+        }
+    }
+    if lastPowerOnTime.IsZero() {
+        return nil, nil
+    }
 
-	return result, nil
+    // 过滤出最后一次开机之后的详单
+    currentDetails := make([]db.Detail, 0)
+    for _, detail := range details {
+        if !detail.StartTime.Before(lastPowerOnTime) {
+            currentDetails = append(currentDetails, detail)
+        }
+    }
+
+    return currentDetails, nil
+}
+
+// CalculateTotalFee 计算总费用（避免重复计算）
+func (s *BillingService) CalculateTotalFee(roomID int) (float32, error) {
+    room, err := s.roomRepo.GetRoomByID(roomID)
+    if err != nil {
+        return 0, fmt.Errorf("获取房间信息失败: %v", err)
+    }
+
+    // 获取所有详单记录
+    details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(
+        roomID,
+        room.CheckinTime,
+        time.Now(),
+    )
+    if err != nil {
+        return 0, fmt.Errorf("获取详单记录失败: %v", err)
+    }
+
+    var totalFee float32
+
+    // 按开关机周期分组计算
+    var cycles [][]db.Detail
+    var currentCycle []db.Detail
+
+    for _, detail := range details {
+        if detail.DetailType == db.DetailTypePowerOn {
+            // 开始新的周期
+            if len(currentCycle) > 0 {
+                cycles = append(cycles, currentCycle)
+            }
+            currentCycle = []db.Detail{detail}
+        } else {
+            if len(currentCycle) > 0 {
+                currentCycle = append(currentCycle, detail)
+                if detail.DetailType == db.DetailTypePowerOff {
+                    cycles = append(cycles, currentCycle)
+                    currentCycle = nil
+                }
+            }
+        }
+    }
+
+    // 如果最后一个周期未结束，也加入统计
+    if len(currentCycle) > 0 {
+        cycles = append(cycles, currentCycle)
+    }
+
+    // 计算每个周期的费用
+    for _, cycle := range cycles {
+        if len(cycle) > 0 {
+            lastDetail := cycle[len(cycle)-1]
+            if lastDetail.DetailType == db.DetailTypePowerOff {
+                // 已结束的周期使用关机详单的费用
+                totalFee += lastDetail.Cost
+            } else if room.ACState == 1 {
+                // 当前正在进行的周期
+                if currentFee, err := s.CalculateCurrentSessionFee(roomID); err == nil {
+                    totalFee += currentFee
+                }
+            }
+        }
+    }
+
+    return roundTo2Decimals(totalFee), nil
 }
 
 // CreateDetail 创建详单记录

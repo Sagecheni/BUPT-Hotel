@@ -31,15 +31,25 @@ func (r *RoomRepository) GetRoomByID(roomID int) (*RoomInfo, error) {
 
 // UpdateRoom 更新房间信息
 func (r *RoomRepository) UpdateRoom(room *RoomInfo) error {
-	return r.db.Model(&RoomInfo{}).Where("room_id = ?", room.RoomID).Where("room_id=?", room.RoomID).Updates(map[string]interface{}{
-		"client_id":     room.ClientID,
-		"client_name":   room.ClientName,
-		"checkin_time":  room.CheckinTime,
-		"checkout_time": room.CheckoutTime,
-		"state":         room.State,
-		"current_speed": room.CurrentSpeed,
-		"current_temp":  room.CurrentTemp,
-	}).Error
+	// 只更新指定的字段,避免覆盖其他字段
+	updates := make(map[string]interface{})
+
+	if room.TargetTemp != 0 {
+		updates["target_temp"] = room.TargetTemp
+	}
+	if room.CurrentTemp != 0 {
+		updates["current_temp"] = room.CurrentTemp
+	}
+	if room.CurrentSpeed != "" {
+		updates["current_speed"] = room.CurrentSpeed
+	}
+	if room.ACState != 0 {
+		updates["ac_state"] = room.ACState
+	}
+
+	return r.db.Model(&RoomInfo{}).
+		Where("room_id = ?", room.RoomID).
+		Updates(updates).Error
 }
 
 // CheckIn 入住

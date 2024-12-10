@@ -4,6 +4,7 @@ package handlers
 
 import (
 	"backend/internal/db"
+	"backend/internal/logger"
 	"backend/internal/service"
 	"backend/internal/types"
 	"fmt"
@@ -191,9 +192,15 @@ func (h *ACHandler) PanelPowerOn(c *gin.Context) {
 	billingService := service.GetBillingService()
 	var currentFee, totalFee float32 = 0, 0
 	if billingService != nil {
-		if bill, err := billingService.CalculateCurrentFee(room.RoomID); err == nil {
-			currentFee = bill.CurrentFee
-			totalFee = bill.TotalFee
+		// 使用新的独立方法获取费用
+		currentFee, err = billingService.CalculateCurrentSessionFee(room.RoomID)
+		if err != nil {
+			logger.Error("计算当前费用失败: %v", err)
+		}
+
+		totalFee, err = billingService.CalculateTotalFee(room.RoomID)
+		if err != nil {
+			logger.Error("计算总费用失败: %v", err)
 		}
 	}
 
@@ -234,9 +241,15 @@ func (h *ACHandler) PanelPowerOff(c *gin.Context) {
 	billingService := service.GetBillingService()
 	var currentFee, totalFee float32 = 0, 0
 	if billingService != nil {
-		if bill, err := billingService.CalculateCurrentFee(room.RoomID); err == nil {
-			currentFee = bill.CurrentFee
-			totalFee = bill.TotalFee
+		// 在关机前获取最终费用
+		currentFee, err = billingService.CalculateCurrentSessionFee(room.RoomID)
+		if err != nil {
+			logger.Error("计算当前费用失败: %v", err)
+		}
+
+		totalFee, err = billingService.CalculateTotalFee(room.RoomID)
+		if err != nil {
+			logger.Error("计算总费用失败: %v", err)
 		}
 	}
 
@@ -256,4 +269,126 @@ func (h *ACHandler) PanelPowerOff(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// 风速调节请求
+type ChangeSpeedRequest struct {
+	RoomNumber      int    `json:"roomNumber" binding:"required"`
+	CurrentFanSpeed string `json:"currentFanSpeed" binding:"required"`
+}
+
+// PanelChangeTemp 处理面板温度调节请求
+func (h *ACHandler) PanelChangeTemp(c *gin.Context) {
+	var req ChangeTempRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "无效的请求格式",
+			Err: err.Error(),
+		})
+		return
+	}
+
+	// 获取房间信息
+	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
+	if err != nil {
+		c.JSON(http.StatusNotFound, Response{
+			Msg: fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
+			Err: err.Error(),
+		})
+		return
+	}
+
+	// 检查房间状态
+	if room.State != 1 {
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "房间未入住",
+		})
+		return
+	}
+
+	if room.ACState != 1 {
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "空调未开启",
+		})
+		return
+	}
+
+	// 设置温度
+	if err := h.acService.SetTemperature(req.RoomNumber, req.TargetTemperature); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Msg: "设置温度失败",
+			Err: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Msg: "温度设置成功",
+	})
+}
+
+// PanelChangeSpeed 处理面板风速调节请求
+func (h *ACHandler) PanelChangeSpeed(c *gin.Context) {
+	var req ChangeSpeedRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "无效的请求格式",
+			Err: err.Error(),
+		})
+		return
+	}
+
+	// 获取房间信息
+	room, err := h.roomRepo.GetRoomByID(req.RoomNumber)
+	if err != nil {
+		c.JSON(http.StatusNotFound, Response{
+			Msg: fmt.Sprintf("房间 %d 不存在", req.RoomNumber),
+			Err: err.Error(),
+		})
+		return
+	}
+
+	// 检查房间状态
+	if room.State != 1 {
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "房间未入住",
+		})
+		return
+	}
+
+	if room.ACState != 1 {
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "空调未开启",
+		})
+		return
+	}
+
+	// 将风速字符串转换为types.Speed类型
+	var speed types.Speed
+	switch req.CurrentFanSpeed {
+	case "低":
+		speed = types.SpeedLow
+	case "中":
+		speed = types.SpeedMedium
+	case "高":
+		speed = types.SpeedHigh
+	default:
+		c.JSON(http.StatusBadRequest, Response{
+			Msg: "无效的风速设置",
+		})
+		return
+	}
+
+	// 设置风速
+	if err := h.acService.SetFanSpeed(req.RoomNumber, speed); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Msg: "设置风速失败",
+			Err: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Msg: "风速设置成功",
+	})
 }

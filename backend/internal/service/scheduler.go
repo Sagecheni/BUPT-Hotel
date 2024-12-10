@@ -150,11 +150,11 @@ func (s *Scheduler) monitorRoomTemperature() {
 
 // HandleRequest 处理空调请求
 func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, currentTemp float32) (bool, error) {
-	s.mu.RLock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	// 检查是否已在服务队列
 	if service, exists := s.serviceQueue[roomID]; exists {
-		s.mu.RUnlock()
-		s.mu.Lock()
+		service.TargetTemp = targetTemp
 		if service.Speed != speed {
 			// 记录当前服务的详单
 			if err := s.billingService.CreateDetail(roomID, service, db.DetailTypeSpeedChange); err != nil {
@@ -163,37 +163,27 @@ func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, cur
 			// 更新服务对象
 			service.StartTime = time.Now()
 			service.Speed = speed
-			service.TargetTemp = targetTemp
 			// 更新房间风速
 			if err := s.roomRepo.UpdateSpeed(roomID, string(speed)); err != nil {
 				logger.Error("更新房间风速失败: %v", err)
 			}
 		}
-		s.mu.Unlock()
 		return true, nil
 	}
-	s.mu.RUnlock()
 
 	// 检查是否在等待队列
 	if item, exists := s.waitQueueIndex[roomID]; exists {
-		s.mu.Lock()
 		if s.shouldReschedule(roomID, speed) {
 			delete(s.waitQueueIndex, roomID)
 			heap.Remove(s.waitQueue, item.indexHeap)
 			result, err := s.schedule(roomID, speed, targetTemp, currentTemp)
-			s.mu.Unlock()
 			return result, err
 		}
 		item.waitObj.Speed = speed
 		item.waitObj.TargetTemp = targetTemp
 		item.priority = speedPriority[speed]
-		heap.Fix(s.waitQueue, item.indexHeap)
-		s.mu.Unlock()
 		return false, nil
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.currentService < MaxServices {
 		// 首次加入服务队列时创建初始详单

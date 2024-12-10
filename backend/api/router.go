@@ -22,6 +22,8 @@ func SetupRouter() *gin.Engine {
 		// 开关机
 		panel.POST("/poweron", acHandler.PanelPowerOn)
 		panel.POST("/poweroff", acHandler.PanelPowerOff)
+		router.POST("/panel/changetemp", acHandler.PanelChangeTemp)
+		router.POST("/panel/changespeed", acHandler.PanelChangeSpeed)
 
 	}
 
