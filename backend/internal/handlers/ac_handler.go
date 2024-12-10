@@ -3,7 +3,6 @@
 package handlers
 
 import (
-	"backend/internal/ac"
 	"backend/internal/db"
 	"backend/internal/service"
 	"backend/internal/types"
@@ -14,7 +13,7 @@ import (
 )
 
 type ACHandler struct {
-	acService *ac.ACService
+	acService *service.ACService
 	roomRepo  *db.RoomRepository
 }
 
@@ -80,7 +79,7 @@ type AdminPowerOnResponse struct {
 
 func NewACHandler() *ACHandler {
 	return &ACHandler{
-		acService: ac.GetACService(),
+		acService: service.GetACService(),
 		roomRepo:  db.NewRoomRepository(),
 	}
 }

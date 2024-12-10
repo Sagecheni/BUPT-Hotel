@@ -4,11 +4,17 @@ package service
 import (
 	"backend/internal/db"
 	"fmt"
+	"math"
 	"time"
 )
 
 // 电费费率 (元/度)
 const PowerRate = 1.0
+
+// roundTo2Decimals 将浮点数四舍五入到2位小数
+func roundTo2Decimals(value float32) float32 {
+	return float32(math.Round(float64(value)*100) / 100)
+}
 
 // 不同风速的费率 (元/分钟)
 var speedToRate = map[string]float32{
@@ -77,20 +83,20 @@ func (s *BillingService) CalculateCurrentFee(roomID int) (*CurrentBill, error) {
 		IsInService: false,
 	}
 
-	// 计算总费用（累计所有历史费用）
-	for _, detail := range details {
-		result.TotalFee += detail.Cost
-	}
-
-	// 如果空调关闭，当前费用保持为0
+	// 如果空调关闭，只返回历史总费用
 	if room.ACState != 1 {
+		// 累计所有已完成的详单费用（不包括当前开机session的费用）
+		var totalFee float32
+		for _, detail := range details {
+			if detail.DetailType != db.DetailTypePowerOn {
+				totalFee += detail.Cost
+			}
+		}
+		result.TotalFee = roundTo2Decimals(totalFee)
 		return result, nil
 	}
 
-	// 空调开启时的处理
-	// 1. 从最后一次开机时间开始累计所有费用
-
-	// 从后向前找到最后一次开机时间（间隔超过5秒的记录）
+	// 找到最后一次开机时间
 	var lastPowerOnTime time.Time
 	for i := len(details) - 1; i >= 0; i-- {
 		if details[i].DetailType == db.DetailTypePowerOn {
@@ -102,22 +108,32 @@ func (s *BillingService) CalculateCurrentFee(roomID int) (*CurrentBill, error) {
 		lastPowerOnTime = room.CheckinTime
 	}
 
-	// 2. 计算当前费用（本次开机后的所有费用）
+	// 分别计算历史总费用和当前开机的费用
+	var totalFee, currentFee float32
 	for _, detail := range details {
-		if !detail.StartTime.Before(lastPowerOnTime) {
-			result.CurrentFee += detail.Cost
+		// 历史费用只计算非PowerOn类型的详单
+		if detail.DetailType != db.DetailTypePowerOn {
+			// 对于当前开机session之前的详单计入总费用
+			if detail.StartTime.Before(lastPowerOnTime) {
+				totalFee += detail.Cost
+			} else {
+				// 当前开机session的费用计入currentFee
+				currentFee += detail.Cost
+			}
 		}
 	}
 
-	// 3. 如果在服务队列中，加上当前服务的实时费用
+	// 如果在服务队列中，计算实时费用
 	if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
 		result.IsInService = true
 		duration := float32(time.Since(serviceObj.StartTime).Minutes())
 		rate := speedToRate[string(serviceObj.Speed)]
-		currentServiceFee := duration * rate
-		result.CurrentFee += currentServiceFee
-		result.TotalFee += currentServiceFee
+		currentServiceFee := roundTo2Decimals(duration * rate)
+		currentFee = roundTo2Decimals(currentFee + currentServiceFee)
 	}
+
+	result.CurrentFee = roundTo2Decimals(currentFee)
+	result.TotalFee = roundTo2Decimals(totalFee + currentFee)
 
 	return result, nil
 }
@@ -125,22 +141,22 @@ func (s *BillingService) CalculateCurrentFee(roomID int) (*CurrentBill, error) {
 // CreateDetail 创建详单记录
 func (s *BillingService) CreateDetail(roomID int, service *ServiceObject, detailType db.DetailType) error {
 	now := time.Now()
-	duration := float32(now.Sub(service.StartTime).Minutes()) // 转换为分钟
+	duration := float32(now.Sub(service.StartTime).Minutes())
 	rate := speedToRate[string(service.Speed)]
-	cost := duration * rate
+	cost := roundTo2Decimals(duration * rate)
 
 	detail := &db.Detail{
 		RoomID:      roomID,
 		QueryTime:   now,
 		StartTime:   service.StartTime,
 		EndTime:     now,
-		ServeTime:   duration,
+		ServeTime:   roundTo2Decimals(duration),
 		Speed:       string(service.Speed),
 		Cost:        cost,
 		Rate:        rate,
-		TempChange:  service.TargetTemp - service.CurrentTemp,
+		TempChange:  roundTo2Decimals(service.TargetTemp - service.CurrentTemp),
 		DetailType:  detailType,
-		CurrentTemp: service.CurrentTemp,
+		CurrentTemp: roundTo2Decimals(service.CurrentTemp),
 	}
 	return s.detailRepo.CreateDetail(detail)
 }
