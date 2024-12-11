@@ -23,8 +23,8 @@ func InitServices() {
 		schedulerService.SetBillingService(billingService)
 		monitorService = NewMonitorService(schedulerService)
 		// 启动监控服务
-		monitorService.StartRoomTempMonitor(1 * time.Second)
-		//monitorService.StartQueuesMonitor(5 * time.Second)
+		//monitorService.StartRoomTempMonitor(1 * time.Second)
+		monitorService.StartQueuesMonitor(10 * time.Second)
 	})
 }
 

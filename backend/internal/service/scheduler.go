@@ -116,7 +116,7 @@ func NewScheduler() *Scheduler {
 		roomRepo:         db.NewRoomRepository(),
 		enableLogging:    false,
 		roomTemp:         make(map[int]float32), // 初始化 roomTemp map
-		tempRecoveryRate: 0.05,                  // 设置默认回温速率
+		tempRecoveryRate: 0.01,                  // 设置默认回温速率
 	}
 
 	go s.monitorServiceStatus()
@@ -133,7 +133,7 @@ func (s *Scheduler) SetBillingService(billing *BillingService) {
 
 // 回温处理
 func (s *Scheduler) monitorRoomTemperature() {
-	s.tempTicker = time.NewTicker(1 * time.Second) // 每秒检查一次
+	s.tempTicker = time.NewTicker(500 * time.Millisecond) // 每秒检查一次
 
 	go func() {
 		for {
@@ -241,6 +241,7 @@ func (s *Scheduler) schedule(roomID int, speed types.Speed, targetTemp, currentT
 }
 
 func (s *Scheduler) monitorServiceStatus() {
+
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
@@ -258,6 +259,11 @@ func (s *Scheduler) monitorServiceStatus() {
 }
 
 func (s *Scheduler) updateServiceStatus() {
+	tempChangeRates := map[types.Speed]float32{
+		types.SpeedHigh:   0.1,    // 1度/10秒
+		types.SpeedMedium: 0.05,   // 1度/20秒
+		types.SpeedLow:    0.0333, // 1度/30秒
+	}
 	for roomID, service := range s.serviceQueue {
 		service.Duration = float32(time.Since(service.StartTime).Seconds())
 
@@ -294,11 +300,15 @@ func (s *Scheduler) updateServiceStatus() {
 			}
 		} else {
 			// 温度未达目标继续调节
+			// 根据风速获取温度变化率
+			tempChangeRate := tempChangeRates[service.Speed]
+
+			// 根据目标温度和当前温度的差值确定变化方向
 			var tempChange float32
 			if tempDiff > 0 {
-				tempChange = 0.1
+				tempChange = tempChangeRate // 需要升温
 			} else {
-				tempChange = -0.1
+				tempChange = -tempChangeRate // 需要降温
 			}
 			service.CurrentTemp += tempChange
 
@@ -575,7 +585,17 @@ func (s *Scheduler) handleTemperatureRecovery() {
 				// 获取当前风速或使用默认中速
 				speed := types.SpeedMedium
 				if room.CurrentSpeed != "" {
-					speed = types.Speed(room.CurrentSpeed)
+					switch room.CurrentSpeed {
+					case "低":
+						speed = types.SpeedLow
+					case "中":
+						speed = types.SpeedMedium
+					case "高":
+						speed = types.SpeedHigh
+					default:
+						speed = types.SpeedMedium
+					}
+
 				}
 
 				// 尝试申请服务

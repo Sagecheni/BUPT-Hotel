@@ -42,7 +42,6 @@ func (r *DetailRepository) GetDetailsByRoomAndTimeRange(roomID int, startTime, e
 			roomID, startTime.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"), err)
 		return nil, fmt.Errorf("获取详单记录失败: %v", err)
 	}
-	logger.Info("成功获取详单记录 - 房间ID: %d, 记录数量: %d", roomID, len(details))
 	return details, nil
 }
 

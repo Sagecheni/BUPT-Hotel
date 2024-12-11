@@ -236,54 +236,54 @@ func (s *ACService) PowerOff(roomID int) error {
 
 // SetTemperature 设置目标温度
 func (s *ACService) SetTemperature(roomID int, targetTemp float32) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-    if !s.centralACState.isOn {
-        return fmt.Errorf("中央空调未开启")
-    }
+	if !s.centralACState.isOn {
+		return fmt.Errorf("中央空调未开启")
+	}
 
-    room, err := s.roomRepo.GetRoomByID(roomID)
-    if err != nil {
-        return fmt.Errorf("获取房间信息失败: %v", err)
-    }
+	room, err := s.roomRepo.GetRoomByID(roomID)
+	if err != nil {
+		return fmt.Errorf("获取房间信息失败: %v", err)
+	}
 
-    if room.ACState != 1 {
-        return fmt.Errorf("空调未开启")
-    }
+	if room.ACState != 1 {
+		return fmt.Errorf("空调未开启")
+	}
 
-    if !s.isValidTemp(types.Mode(room.Mode), targetTemp) {
-        return fmt.Errorf("温度 %.1f°C 超出当前模式允许范围", targetTemp)
-    }
+	if !s.isValidTemp(types.Mode(room.Mode), targetTemp) {
+		return fmt.Errorf("温度 %.1f°C 超出当前模式允许范围", targetTemp)
+	}
 
-    // 更新房间的目标温度
-    if err := s.roomRepo.UpdateRoom(&db.RoomInfo{
-        RoomID:     roomID,
-        TargetTemp: targetTemp,
-    }); err != nil {
-        return fmt.Errorf("更新目标温度失败: %v", err)
-    }
+	// 更新房间的目标温度
+	if err := s.roomRepo.UpdateRoom(&db.RoomInfo{
+		RoomID:     roomID,
+		TargetTemp: targetTemp,
+	}); err != nil {
+		return fmt.Errorf("更新目标温度失败: %v", err)
+	}
 
-    // 将温度调节请求发送给调度器
-    inService, err := s.scheduler.HandleRequest(
-        roomID,
-        types.Speed(room.CurrentSpeed),
-        targetTemp,
-        room.CurrentTemp,
-    )
-    if err != nil {
-        return fmt.Errorf("处理温度调节请求失败: %v", err)
-    }
+	// 将温度调节请求发送给调度器
+	inService, err := s.scheduler.HandleRequest(
+		roomID,
+		types.Speed(room.CurrentSpeed),
+		targetTemp,
+		room.CurrentTemp,
+	)
+	if err != nil {
+		return fmt.Errorf("处理温度调节请求失败: %v", err)
+	}
 
-    if !inService {
-        logger.Info("房间 %d 温度调节请求已加入等待队列 (目标温度: %.1f°C)", 
-            roomID, targetTemp)
-        return nil
-    }
+	if !inService {
+		logger.Info("房间 %d 温度调节请求已加入等待队列 (目标温度: %.1f°C)",
+			roomID, targetTemp)
+		return nil
+	}
 
-    logger.Info("房间 %d 温度调节请求已开始处理 (目标温度: %.1f°C)", 
-        roomID, targetTemp)
-    return nil
+	logger.Info("房间 %d 温度调节请求已开始处理 (目标温度: %.1f°C)",
+		roomID, targetTemp)
+	return nil
 }
 
 // SetFanSpeed 设置风速
