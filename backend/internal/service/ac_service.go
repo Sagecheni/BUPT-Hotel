@@ -376,17 +376,45 @@ func (s *ACService) GetConfig() types.Config {
 	return s.config
 }
 
-// SetConfig 设置空调配置
+// SetConfig 设置空调配置的方法已存在，但我们需要确保它能正确处理温度范围的更新
 func (s *ACService) SetConfig(config types.Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// 验证配置
 	if err := s.validateConfig(config); err != nil {
 		return err
 	}
 
+	// 更新配置
 	s.config = config
-	logger.Info("更新空调配置成功")
+	logger.Info("空调配置已更新")
+
+	// 检查所有房间的目标温度是否在新范围内
+	rooms, err := s.roomRepo.GetOccupiedRooms()
+	if err != nil {
+		logger.Error("获取已入住房间失败: %v", err)
+		return err
+	}
+
+	// 遍历所有房间，将超出范围的目标温度调整到范围内
+	for _, room := range rooms {
+		if room.ACState == 1 {
+			currentMode := types.Mode(room.Mode)
+			tempRange := config.TempRanges[currentMode]
+
+			if room.TargetTemp < tempRange.Min {
+				if err := s.SetTemperature(room.RoomID, tempRange.Min); err != nil {
+					logger.Error("调整房间 %d 温度失败: %v", room.RoomID, err)
+				}
+			} else if room.TargetTemp > tempRange.Max {
+				if err := s.SetTemperature(room.RoomID, tempRange.Max); err != nil {
+					logger.Error("调整房间 %d 温度失败: %v", room.RoomID, err)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -3,6 +3,7 @@ package api
 import (
 	"backend/internal/handlers"
 	"backend/internal/service"
+	"backend/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,6 +13,7 @@ func SetupRouter() *gin.Engine {
 	service.InitServices()
 
 	router := gin.Default()
+	router.Use(middleware.CORSMiddleware())
 	// 创建处理器实例
 	acHandler := handlers.NewACHandler()
 	roomHandler := handlers.NewRoomHandler()
@@ -24,6 +26,7 @@ func SetupRouter() *gin.Engine {
 		panel.POST("/poweroff", acHandler.PanelPowerOff)
 		router.POST("/panel/changetemp", acHandler.PanelChangeTemp)
 		router.POST("/panel/changespeed", acHandler.PanelChangeSpeed)
+		router.POST("/panel/requeststatus", acHandler.PanelRequestStatus)
 
 	}
 
@@ -36,7 +39,17 @@ func SetupRouter() *gin.Engine {
 	admin := router.Group("/admin")
 	{
 		admin.POST("/adminpoweron", acHandler.AdminPowerOn)
+		admin.POST("/adminpoweroff", acHandler.AdminPowerOff)
+		admin.POST("/changemode", acHandler.AdminChangeMode)
+		admin.POST("/changetemprange", acHandler.AdminChangeTempRange)
+		admin.POST("/changerate", acHandler.AdminChangeRate)
+		admin.POST("/requestallstate", acHandler.AdminRequestAllState)
+		admin.POST("/changedefaulttemp", acHandler.AdminChangeDefaultTemp)
 	}
-
+	monitor := router.Group("/monitor")
+	{
+		monitor.POST("/monitorpoweron", acHandler.MonitorPowerOn)
+		monitor.POST("/monitorpoweroff", acHandler.MonitorPowerOff)
+	}
 	return router
 }
