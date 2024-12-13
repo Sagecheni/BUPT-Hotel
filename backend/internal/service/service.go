@@ -31,6 +31,7 @@ func InitServices() {
 // StartMonitorService 启动监控服务
 func StartMonitorService() {
 	if monitorService != nil {
+		monitorService.StartRoomTempMonitor(10 * time.Second)
 		monitorService.StartQueuesMonitor(10 * time.Second)
 	}
 }
