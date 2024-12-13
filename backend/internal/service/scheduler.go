@@ -116,7 +116,7 @@ func NewScheduler() *Scheduler {
 		roomRepo:         db.NewRoomRepository(),
 		enableLogging:    false,
 		roomTemp:         make(map[int]float32), // 初始化 roomTemp map
-		tempRecoveryRate: 0.01,                  // 设置默认回温速率
+		tempRecoveryRate: 0.05,                  // 设置默认回温速率
 	}
 
 	go s.monitorServiceStatus()
@@ -133,7 +133,7 @@ func (s *Scheduler) SetBillingService(billing *BillingService) {
 
 // 回温处理
 func (s *Scheduler) monitorRoomTemperature() {
-	s.tempTicker = time.NewTicker(500 * time.Millisecond) // 每秒检查一次
+	s.tempTicker = time.NewTicker(100 * time.Millisecond) // 每500毫秒检查一次
 
 	go func() {
 		for {
