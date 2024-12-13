@@ -8,7 +8,6 @@ import (
 	"backend/internal/types"
 	"fmt"
 	"sync"
-	"time"
 )
 
 // DefaultConfig 默认空调配置
@@ -177,10 +176,6 @@ func (s *ACService) PowerOn(roomID int) error {
 		return fmt.Errorf("空调已开启")
 	}
 
-	if err := s.createPowerOnDetail(roomID, room.CurrentTemp, room.TargetTemp); err != nil {
-		return fmt.Errorf("创建开机详单失败: %v", err)
-	}
-
 	if err := s.roomRepo.PowerOnAC(roomID, string(s.centralACState.mode), s.config.DefaultTemp); err != nil {
 		return fmt.Errorf("开启空调失败: %v", err)
 	}
@@ -207,22 +202,9 @@ func (s *ACService) PowerOff(roomID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	room, err := s.roomRepo.GetRoomByID(roomID)
+	_, err := s.roomRepo.GetRoomByID(roomID)
 	if err != nil {
 		return fmt.Errorf("获取房间状态失败: %v", err)
-	}
-
-	state := &types.State{
-		PowerState:   room.ACState == 1,
-		Mode:         types.Mode(room.Mode),
-		CurrentTemp:  room.CurrentTemp,
-		TargetTemp:   room.TargetTemp,
-		Speed:        types.Speed(room.CurrentSpeed),
-		LastModified: room.CheckinTime,
-	}
-
-	if err := s.createPowerOffDetail(roomID, state.CurrentTemp, state.TargetTemp, state.Speed); err != nil {
-		return fmt.Errorf("创建关机详单失败: %v", err)
 	}
 
 	s.scheduler.RemoveRoom(roomID)
@@ -255,27 +237,6 @@ func (s *ACService) SetTemperature(roomID int, targetTemp float32) error {
 
 	if !s.isValidTemp(types.Mode(room.Mode), targetTemp) {
 		return fmt.Errorf("温度 %.1f°C 超出当前模式允许范围", targetTemp)
-	}
-
-	// 创建温度调节详单
-	detail := &db.Detail{
-		RoomID:      roomID,
-		QueryTime:   time.Now(),
-		StartTime:   time.Now(),
-		EndTime:     time.Now(),
-		ServeTime:   0,
-		Speed:       room.CurrentSpeed,
-		Cost:        0,
-		Rate:        0,
-		TempChange:  targetTemp - room.CurrentTemp,
-		CurrentTemp: room.CurrentTemp,
-		TargetTemp:  targetTemp,
-		DetailType:  db.DetailTypeTemp,
-	}
-
-	if err := s.detailRepo.CreateDetail(detail); err != nil {
-		logger.Error("创建温度调节详单失败: %v", err)
-		// 不因为详单创建失败而影响正常功能
 	}
 
 	// 更新房间的目标温度
@@ -447,89 +408,6 @@ func (s *ACService) isValidTemp(mode types.Mode, temp float32) bool {
 		return temp >= tempRange.Min && temp <= tempRange.Max
 	}
 	return false
-}
-
-func (s *ACService) createPowerOnDetail(roomID int, currentTemp float32, targetTemp float32) error {
-	detail := &db.Detail{
-		RoomID:      roomID,
-		QueryTime:   time.Now(),
-		StartTime:   time.Now(),
-		EndTime:     time.Now(),
-		ServeTime:   0,
-		Speed:       "",
-		Cost:        0,
-		Rate:        0,
-		TempChange:  0,
-		TargetTemp:  targetTemp,
-		CurrentTemp: currentTemp,
-		DetailType:  db.DetailTypePowerOn,
-	}
-
-	if err := s.detailRepo.CreateDetail(detail); err != nil {
-		logger.Error("创建开机详单失败 - 房间ID: %d, 错误: %v", roomID, err)
-		return err
-	}
-
-	logger.Info("创建开机详单成功 - 房间ID: %d", roomID)
-	return nil
-}
-
-func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, targetTemp float32, speed types.Speed) error {
-	var powerOnDetail *db.Detail
-	details, err := s.detailRepo.GetDetailsByRoom(roomID)
-	if err != nil {
-		logger.Error("获取房间详单失败 - 房间ID: %d, 错误: %v", roomID, err)
-		return err
-	}
-
-	// 找到最近一次开机详单
-	for i := len(details) - 1; i >= 0; i-- {
-		if details[i].DetailType == db.DetailTypePowerOn {
-			powerOnDetail = &details[i]
-			break
-		}
-	}
-
-	if powerOnDetail == nil {
-		logger.Error("未找到开机详单 - 房间ID: %d", roomID)
-		return fmt.Errorf("未找到开机详单")
-	}
-
-	now := time.Now()
-	serveTime := float32(now.Sub(powerOnDetail.StartTime).Minutes())
-	tempChange := currentTemp - powerOnDetail.CurrentTemp
-
-	// 获取当前费用作为本次关机时的费用
-	currentFee, err := s.billing.CalculateCurrentSessionFee(roomID)
-	if err != nil {
-		logger.Error("计算当前费用失败 - 房间ID: %d, 错误: %v", roomID, err)
-		return err
-	}
-	rate := s.config.Rates[speed]
-	// 创建关机详单
-	detail := &db.Detail{
-		RoomID:      roomID,
-		QueryTime:   now,
-		StartTime:   powerOnDetail.StartTime, // 从开机时间开始
-		EndTime:     now,
-		ServeTime:   serveTime,
-		Speed:       string(speed),
-		Cost:        float32(currentFee),
-		Rate:        rate,
-		TempChange:  tempChange,
-		CurrentTemp: currentTemp,
-		TargetTemp:  targetTemp,
-		DetailType:  db.DetailTypePowerOff,
-	}
-
-	if err := s.detailRepo.CreateDetail(detail); err != nil {
-		logger.Error("创建关机详单失败 - 房间ID: %d, 错误: %v", roomID, err)
-		return err
-	}
-
-	logger.Info("创建关机详单成功 - 房间ID: %d, 服务时长: %.1f分钟, 费用: %.2f元",
-		roomID, serveTime, currentFee)
-	return nil
 }
 
 func (s *ACService) validateConfig(config types.Config) error {

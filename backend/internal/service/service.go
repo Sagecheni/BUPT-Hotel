@@ -22,8 +22,6 @@ func InitServices() {
 		billingService = NewBillingService(schedulerService)
 		schedulerService.SetBillingService(billingService)
 		monitorService = NewMonitorService(schedulerService)
-		// 启动监控服务
-		//monitorService.StartRoomTempMonitor(1 * time.Second)
 	})
 }
 

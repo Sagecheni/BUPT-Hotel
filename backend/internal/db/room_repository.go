@@ -165,10 +165,12 @@ func (r *RoomRepository) PowerOnAC(roomID int, mode string, defaultTemp float32)
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// 更新房间空调状态
 		updates := map[string]interface{}{
-			"ac_state":      1,           // 开机状态
-			"mode":          mode,        // 工作模式
-			"target_temp":   defaultTemp, // 目标温度设为默认温度
-			"current_speed": "中",         // 初始中风速
+			"ac_state":           1,                             // 开机状态
+			"mode":               mode,                          // 工作模式
+			"target_temp":        defaultTemp,                   // 目标温度设为默认温度
+			"current_speed":      "中",                           // 初始中风速
+			"last_power_on_time": time.Now(),                    // 记录开机时间
+			"switch_count":       gorm.Expr("switch_count + 1"), // 增加开关次数
 		}
 
 		if err := tx.Model(&RoomInfo{}).Where("room_id = ?", roomID).Updates(updates).Error; err != nil {

@@ -72,70 +72,58 @@ func (s *BillingService) CalculateCurrentSessionFee(roomID int) (float32, error)
 	}
 
 	// 获取本次开机以来的所有详单记录
-	details, err := s.getDetailsSinceLastPowerOn(roomID)
+	details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(
+		roomID,
+		room.LastPowerOnTime, // 使用LastPowerOnTime替代查找PowerOn详单
+		time.Now(),
+	)
 	if err != nil {
 		return 0, fmt.Errorf("获取详单记录失败: %v", err)
 	}
-
-	// 计算已产生的详单费用
 	var currentFee float32
+	var lastServiceStart time.Time
+	var isInService bool
+
+	// 遍历详单记录,根据服务开始和中断事件计算费用
 	for _, detail := range details {
-		if detail.DetailType != db.DetailTypePowerOn {
-			currentFee += detail.Cost
+		switch detail.DetailType {
+		case db.DetailTypeServiceStart:
+			lastServiceStart = detail.StartTime
+			isInService = true
+		case db.DetailTypeServiceInterrupt:
+			if isInService {
+				duration := calculateScaledDuration(lastServiceStart, detail.EndTime)
+				rate := speedToRate[detail.Speed]
+				currentFee += roundTo2Decimals(duration * rate)
+				isInService = false
+			}
+		case db.DetailTypeSpeedChange:
+			if isInService {
+				// 计算切换前的费用
+				duration := calculateScaledDuration(lastServiceStart, detail.EndTime)
+				rate := speedToRate[detail.Speed]
+				currentFee += roundTo2Decimals(duration * rate)
+				// 更新新服务段的开始时间和费率
+				lastServiceStart = detail.EndTime
+			}
 		}
 	}
 
 	// 如果在服务队列中，计算实时费用
-	if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
-		duration := calculateScaledDuration(serviceObj.StartTime)
-		rate := speedToRate[string(serviceObj.Speed)]
-		currentServiceFee := roundTo2Decimals(duration * rate)
-		currentFee = roundTo2Decimals(currentFee + currentServiceFee)
+	if isInService {
+		if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
+			now := time.Now()
+			duration := calculateScaledDuration(lastServiceStart, now)
+			rate := speedToRate[string(serviceObj.Speed)]
+			currentServiceFee := roundTo2Decimals(duration * rate)
+			currentFee = roundTo2Decimals(currentFee + currentServiceFee)
+		}
 	}
 
 	return currentFee, nil
 }
 
-// getDetailsSinceLastPowerOn 获取最近一次开机以来的所有详单
-func (s *BillingService) getDetailsSinceLastPowerOn(roomID int) ([]db.Detail, error) {
-	room, err := s.roomRepo.GetRoomByID(roomID)
-	if err != nil {
-		return nil, err
-	}
-
-	details, err := s.detailRepo.GetDetailsByRoomAndTimeRange(
-		roomID,
-		room.CheckinTime,
-		time.Now(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// 找到最后一次开机时间
-	var lastPowerOnTime time.Time
-	for i := len(details) - 1; i >= 0; i-- {
-		if details[i].DetailType == db.DetailTypePowerOn {
-			lastPowerOnTime = details[i].StartTime
-			break
-		}
-	}
-	if lastPowerOnTime.IsZero() {
-		return nil, nil
-	}
-
-	// 过滤出最后一次开机之后的详单
-	currentDetails := make([]db.Detail, 0)
-	for _, detail := range details {
-		if !detail.StartTime.Before(lastPowerOnTime) {
-			currentDetails = append(currentDetails, detail)
-		}
-	}
-
-	return currentDetails, nil
-}
-
-// CalculateTotalFee 计算总费用（避免重复计算）
+// CalculateTotalFee 计算总费用
 func (s *BillingService) CalculateTotalFee(roomID int) (float32, error) {
 	room, err := s.roomRepo.GetRoomByID(roomID)
 	if err != nil {
@@ -153,56 +141,52 @@ func (s *BillingService) CalculateTotalFee(roomID int) (float32, error) {
 	}
 
 	var totalFee float32
+	var lastServiceStart time.Time
+	var isInService bool
 
-	// 按开关机周期分组计算
-	var cycles [][]db.Detail
-	var currentCycle []db.Detail
-
+	// 遍历所有详单,根据服务开始和中断事件计算费用
 	for _, detail := range details {
-		if detail.DetailType == db.DetailTypePowerOn {
-			// 开始新的周期
-			if len(currentCycle) > 0 {
-				cycles = append(cycles, currentCycle)
+		switch detail.DetailType {
+		case db.DetailTypeServiceStart:
+			lastServiceStart = detail.StartTime
+			isInService = true
+		case db.DetailTypeServiceInterrupt:
+			if isInService {
+				duration := calculateScaledDuration(lastServiceStart, detail.EndTime)
+				rate := speedToRate[detail.Speed]
+				totalFee += roundTo2Decimals(duration * rate)
+				isInService = false
 			}
-			currentCycle = []db.Detail{detail}
-		} else {
-			if len(currentCycle) > 0 {
-				currentCycle = append(currentCycle, detail)
-				if detail.DetailType == db.DetailTypePowerOff {
-					cycles = append(cycles, currentCycle)
-					currentCycle = nil
-				}
+		case db.DetailTypeSpeedChange:
+			if isInService {
+				// 计算切换前的费用
+				duration := calculateScaledDuration(lastServiceStart, detail.EndTime)
+				rate := speedToRate[detail.Speed]
+				totalFee += roundTo2Decimals(duration * rate)
+				// 更新新服务段的开始时间和费率
+				lastServiceStart = detail.EndTime
 			}
+		}
+
+	}
+
+	// 如果当前正在服务中,计算最后一段服务的费用
+	if isInService && room.ACState == 1 {
+		if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
+			now := time.Now()
+			duration := calculateScaledDuration(lastServiceStart, now)
+			rate := speedToRate[string(serviceObj.Speed)]
+			currentServiceFee := roundTo2Decimals(duration * rate)
+			totalFee = roundTo2Decimals(totalFee + currentServiceFee)
 		}
 	}
 
-	// 如果最后一个周期未结束，也加入统计
-	if len(currentCycle) > 0 {
-		cycles = append(cycles, currentCycle)
-	}
-
-	// 计算每个周期的费用
-	for _, cycle := range cycles {
-		if len(cycle) > 0 {
-			lastDetail := cycle[len(cycle)-1]
-			if lastDetail.DetailType == db.DetailTypePowerOff {
-				// 已结束的周期使用关机详单的费用
-				totalFee += lastDetail.Cost
-			} else if room.ACState == 1 {
-				// 当前正在进行的周期
-				if currentFee, err := s.CalculateCurrentSessionFee(roomID); err == nil {
-					totalFee += currentFee
-				}
-			}
-		}
-	}
-
-	return roundTo2Decimals(totalFee), nil
+	return totalFee, nil
 }
 
 // calculateScaledDuration 计算缩放后的持续时间(分钟)
-func calculateScaledDuration(start time.Time) float32 {
-	realDuration := time.Since(start).Seconds()
+func calculateScaledDuration(start time.Time, end time.Time) float32 {
+	realDuration := end.Sub(start).Seconds()
 	// 将实际秒数转换为模拟的分钟数 (10秒=1分钟)
 	return float32(realDuration) * float32(TimeScale) / 60.0
 }
@@ -210,23 +194,24 @@ func calculateScaledDuration(start time.Time) float32 {
 // CreateDetail 创建详单记录
 func (s *BillingService) CreateDetail(roomID int, service *ServiceObject, detailType db.DetailType) error {
 	now := time.Now()
-	duration := calculateScaledDuration(service.StartTime)
 	rate := speedToRate[string(service.Speed)]
-	cost := roundTo2Decimals(duration * rate)
 
 	detail := &db.Detail{
 		RoomID:      roomID,
 		QueryTime:   now,
 		StartTime:   service.StartTime,
 		EndTime:     now,
-		ServeTime:   roundTo2Decimals(duration),
+		ServeTime:   roundTo2Decimals(calculateScaledDuration(service.StartTime, now)),
 		Speed:       string(service.Speed),
-		Cost:        cost,
 		Rate:        rate,
 		TempChange:  roundTo2Decimals(service.TargetTemp - service.CurrentTemp),
 		DetailType:  detailType,
 		TargetTemp:  service.TargetTemp,
 		CurrentTemp: roundTo2Decimals(service.CurrentTemp),
+	}
+	// 只有服务中断和关机时才计算费用
+	if detailType == db.DetailTypeServiceInterrupt {
+		detail.Cost = roundTo2Decimals(detail.ServeTime * detail.Rate)
 	}
 	return s.detailRepo.CreateDetail(detail)
 }

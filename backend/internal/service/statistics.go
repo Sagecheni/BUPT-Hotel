@@ -75,12 +75,10 @@ func (s *StatisticsService) getReport(startTime, endTime time.Time) ([]Statistic
 		}
 
 		var (
-			switchCount            int
 			dispatchCount          int
 			temperatureChangeCount int
 			fanSpeedChangeCount    int
 			totalCost              float32
-			isInSession            bool
 			servicePeriods         []ServicePeriod
 			currentPeriod          *ServicePeriod
 		)
@@ -89,17 +87,8 @@ func (s *StatisticsService) getReport(startTime, endTime time.Time) ([]Statistic
 			totalCost += detail.Cost
 
 			switch detail.DetailType {
-			case db.DetailTypePowerOn:
-				switchCount++
-				isInSession = true
-
-			case db.DetailTypePowerOff:
-				isInSession = false
-
 			case db.DetailTypeSpeedChange:
-				if isInSession {
-					fanSpeedChangeCount++
-				}
+				fanSpeedChangeCount++
 
 			case db.DetailTypeServiceInterrupt:
 				dispatchCount++
@@ -115,10 +104,17 @@ func (s *StatisticsService) getReport(startTime, endTime time.Time) ([]Statistic
 				}
 
 			case db.DetailTypeTemp:
-				if isInSession {
-					temperatureChangeCount++
-				}
+				temperatureChangeCount++
 			}
+		}
+
+		// 获取该时间段内的开关次数
+		var count int64
+		if err := s.roomRepo.GetDB().Model(&db.RoomInfo{}).
+			Where("room_id = ? AND last_power_on_time BETWEEN ? AND ?", room.RoomID, startTime, endTime).
+			Count(&count).Error; err != nil {
+			logger.Error("获取房间 %d 开关次数失败: %v", room.RoomID, err)
+			continue
 		}
 
 		// 计算总服务时长
@@ -127,7 +123,7 @@ func (s *StatisticsService) getReport(startTime, endTime time.Time) ([]Statistic
 			duration := period.EndTime.Sub(period.StartTime).Minutes()
 			totalDuration += float32(duration)
 		}
-
+		switchCount := int(count)
 		stat := StatisticRecord{
 			Room:                   room.RoomID,
 			SwitchCount:            switchCount,

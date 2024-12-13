@@ -173,6 +173,32 @@ func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, cur
 
 	// 检查是否在等待队列
 	if item, exists := s.waitQueueIndex[roomID]; exists {
+		oldSpeed := item.waitObj.Speed
+		if oldSpeed != speed {
+			// 获取房间信息，用于创建详单
+			room, err := s.roomRepo.GetRoomByID(roomID)
+			if err != nil {
+				logger.Error("获取房间信息失败: %v", err)
+				return false, err
+			}
+
+			// 创建一个临时的服务对象用于记录详单
+			tempService := &ServiceObject{
+				RoomID:      roomID,
+				StartTime:   time.Now(),
+				PowerOnTime: room.CheckinTime,
+				Speed:       oldSpeed, // 使用旧风速
+				TargetTemp:  item.waitObj.TargetTemp,
+				CurrentTemp: item.waitObj.CurrentTemp,
+			}
+
+			// 创建风速切换详单
+			if s.billingService != nil {
+				if err := s.billingService.CreateDetail(roomID, tempService, db.DetailTypeSpeedChange); err != nil {
+					logger.Error("创建风速切换详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+				}
+			}
+		}
 		if s.shouldReschedule(roomID, speed) {
 			delete(s.waitQueueIndex, roomID)
 			heap.Remove(s.waitQueue, item.indexHeap)
@@ -226,12 +252,13 @@ func (s *Scheduler) schedule(roomID int, speed types.Speed, targetTemp, currentT
 			// 将被抢占的服务对象添加到等待队列
 			s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
 			// 从服务队列中移除
-			delete(s.serviceQueue, victim.RoomID)
+
 			if s.billingService != nil {
-				if err := s.billingService.CreateDetail(roomID, victim, db.DetailTypeServiceInterrupt); err != nil {
+				if err := s.billingService.CreateDetail(victim.RoomID, victim, db.DetailTypeServiceInterrupt); err != nil {
 					logger.Error("创建服务中断详单失败 - 房间ID: %d, 错误: %v", roomID, err)
 				}
 			}
+			delete(s.serviceQueue, victim.RoomID)
 			s.currentService--
 
 			// 将新请求加入服务队列
@@ -279,12 +306,6 @@ func (s *Scheduler) updateServiceStatus() {
 
 		if math.Abs(float64(tempDiff)) < 0.05 {
 			// 温度达到目标
-			if s.billingService != nil {
-				if err := s.billingService.CreateDetail(roomID, service, db.DetailTypeTargetReached); err != nil {
-					logger.Error("创建目标温度达到详单失败: %v", err)
-				}
-			}
-			// 更新房间温度
 			if err := s.roomRepo.UpdateTemperature(roomID, service.TargetTemp); err != nil {
 				logger.Error("更新房间温度失败: %v", err)
 			}
