@@ -48,28 +48,52 @@ func Init_DB() {
 }
 
 func InitBaseData() {
+	// 添加管理员用户
 	var adminCount int64
-	DB.Model(&User{}).Where("identity = ?", "admin").Count(&adminCount)
-
+	DB.Model(&User{}).Where("identity = ?", "administrator").Count(&adminCount)
 	if adminCount == 0 {
 		admin := User{
-			Account:  "manager",
-			Password: "manager",
-			Identity: "manager",
+			Username: "admin",
+			Password: "admin123",
+			Identity: "administrator",
 		}
 		DB.Create(&admin)
 	}
 
+	// 添加经理用户
+	var managerCount int64
+	DB.Model(&User{}).Where("identity = ?", "manager").Count(&managerCount)
+	if managerCount == 0 {
+		manager := User{
+			Username: "manager",
+			Password: "manager123",
+			Identity: "manager",
+		}
+		DB.Create(&manager)
+	}
+
+	// 添加前台用户
 	var receptionCount int64
 	DB.Model(&User{}).Where("identity = ?", "reception").Count(&receptionCount)
-
 	if receptionCount == 0 {
 		reception := User{
-			Account:  "reception",
-			Password: "123456",
+			Username: "reception",
+			Password: "reception123",
 			Identity: "reception",
 		}
 		DB.Create(&reception)
+	}
+
+	// 添加示例客户
+	var customerCount int64
+	DB.Model(&User{}).Where("identity = ?", "customer").Count(&customerCount)
+	if customerCount == 0 {
+		customer := User{
+			Username: "customer",
+			Password: "customer123",
+			Identity: "customer",
+		}
+		DB.Create(&customer)
 	}
 }
 

@@ -186,7 +186,7 @@ func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, cur
 	}
 
 	if s.currentService < MaxServices {
-		// 首次加入服务队列时创建初始详单
+
 		if err := s.addToServiceQueue(roomID, speed, targetTemp, currentTemp); err != nil {
 			return false, err
 		}
@@ -203,6 +203,7 @@ func (s *Scheduler) ClearAllQueues() {
 
 	// 清空服务队列
 	for roomID := range s.serviceQueue {
+
 		delete(s.serviceQueue, roomID)
 	}
 	s.currentService = 0
@@ -224,7 +225,13 @@ func (s *Scheduler) schedule(roomID int, speed types.Speed, targetTemp, currentT
 
 			// 将被抢占的服务对象添加到等待队列
 			s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
+			// 从服务队列中移除
 			delete(s.serviceQueue, victim.RoomID)
+			if s.billingService != nil {
+				if err := s.billingService.CreateDetail(roomID, victim, db.DetailTypeServiceInterrupt); err != nil {
+					logger.Error("创建服务中断详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+				}
+			}
 			s.currentService--
 
 			// 将新请求加入服务队列
@@ -286,6 +293,11 @@ func (s *Scheduler) updateServiceStatus() {
 			s.roomTemp[roomID] = service.TargetTemp
 
 			// 从服务队列移除并处理下一个请求
+			if s.billingService != nil {
+				if err := s.billingService.CreateDetail(roomID, service, db.DetailTypeServiceInterrupt); err != nil {
+					logger.Error("创建服务中断详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+				}
+			}
 			delete(s.serviceQueue, roomID)
 			s.currentService--
 			//如果等待队列不为空，处理下一个请求
@@ -344,6 +356,11 @@ func (s *Scheduler) checkWaitQueue() {
 				victim := s.serviceQueue[longestServiceRoom]
 
 				s.addToWaitQueue(victim.RoomID, victim.Speed, victim.TargetTemp, victim.CurrentTemp)
+				if s.billingService != nil {
+					if err := s.billingService.CreateDetail(longestServiceRoom, victim, db.DetailTypeServiceInterrupt); err != nil {
+						logger.Error("创建服务中断详单失败 - 房间ID: %d, 错误: %v", longestServiceRoom, err)
+					}
+				}
 				delete(s.serviceQueue, longestServiceRoom)
 				s.currentService--
 
@@ -375,7 +392,7 @@ func (s *Scheduler) addToServiceQueue(roomID int, speed types.Speed, targetTemp,
 		return fmt.Errorf("获取房间信息失败: %v", err)
 	}
 
-	s.serviceQueue[roomID] = &ServiceObject{
+	serviceObj := &ServiceObject{
 		RoomID:      roomID,
 		StartTime:   time.Now(),       // 当前服务的开始时间
 		PowerOnTime: room.CheckinTime, // 保存开机时间
@@ -385,7 +402,17 @@ func (s *Scheduler) addToServiceQueue(roomID int, speed types.Speed, targetTemp,
 		CurrentTemp: currentTemp,
 		IsCompleted: false,
 	}
+
+	s.serviceQueue[roomID] = serviceObj
 	s.currentService++
+	// 创建服务开始详单
+	if s.billingService != nil {
+		if err := s.billingService.CreateDetail(roomID, serviceObj, db.DetailTypeServiceStart); err != nil {
+			logger.Error("创建服务开始详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+			// 不要因为详单创建失败而影响正常服务
+		}
+	}
+
 	return nil
 }
 
@@ -480,7 +507,12 @@ func (s *Scheduler) RemoveRoom(roomID int) {
 	defer s.mu.Unlock()
 
 	// 从服务队列中移除
-	if _, exists := s.serviceQueue[roomID]; exists {
+	if service, exists := s.serviceQueue[roomID]; exists {
+		if s.billingService != nil {
+			if err := s.billingService.CreateDetail(roomID, service, db.DetailTypeServiceInterrupt); err != nil {
+				logger.Error("创建服务中断详单失败 - 房间ID: %d, 错误: %v", roomID, err)
+			}
+		}
 		delete(s.serviceQueue, roomID)
 		s.currentService--
 		logger.Info("房间 %d 从服务队列中移除", roomID)

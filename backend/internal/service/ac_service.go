@@ -99,6 +99,7 @@ func (s *ACService) StartCentralAC(mode types.Mode) error {
 
 	s.centralACState.isOn = true
 	s.centralACState.mode = mode
+	StartMonitorService()
 	logger.Info("中央空调启动成功，工作模式：%s", mode)
 	return nil
 }
@@ -176,7 +177,7 @@ func (s *ACService) PowerOn(roomID int) error {
 		return fmt.Errorf("空调已开启")
 	}
 
-	if err := s.createPowerOnDetail(roomID, room.CurrentTemp); err != nil {
+	if err := s.createPowerOnDetail(roomID, room.CurrentTemp, room.TargetTemp); err != nil {
 		return fmt.Errorf("创建开机详单失败: %v", err)
 	}
 
@@ -220,7 +221,7 @@ func (s *ACService) PowerOff(roomID int) error {
 		LastModified: room.CheckinTime,
 	}
 
-	if err := s.createPowerOffDetail(roomID, state.CurrentTemp, state.Speed); err != nil {
+	if err := s.createPowerOffDetail(roomID, state.CurrentTemp, state.TargetTemp, state.Speed); err != nil {
 		return fmt.Errorf("创建关机详单失败: %v", err)
 	}
 
@@ -254,6 +255,27 @@ func (s *ACService) SetTemperature(roomID int, targetTemp float32) error {
 
 	if !s.isValidTemp(types.Mode(room.Mode), targetTemp) {
 		return fmt.Errorf("温度 %.1f°C 超出当前模式允许范围", targetTemp)
+	}
+
+	// 创建温度调节详单
+	detail := &db.Detail{
+		RoomID:      roomID,
+		QueryTime:   time.Now(),
+		StartTime:   time.Now(),
+		EndTime:     time.Now(),
+		ServeTime:   0,
+		Speed:       room.CurrentSpeed,
+		Cost:        0,
+		Rate:        0,
+		TempChange:  targetTemp - room.CurrentTemp,
+		CurrentTemp: room.CurrentTemp,
+		TargetTemp:  targetTemp,
+		DetailType:  db.DetailTypeTemp,
+	}
+
+	if err := s.detailRepo.CreateDetail(detail); err != nil {
+		logger.Error("创建温度调节详单失败: %v", err)
+		// 不因为详单创建失败而影响正常功能
 	}
 
 	// 更新房间的目标温度
@@ -427,7 +449,7 @@ func (s *ACService) isValidTemp(mode types.Mode, temp float32) bool {
 	return false
 }
 
-func (s *ACService) createPowerOnDetail(roomID int, currentTemp float32) error {
+func (s *ACService) createPowerOnDetail(roomID int, currentTemp float32, targetTemp float32) error {
 	detail := &db.Detail{
 		RoomID:      roomID,
 		QueryTime:   time.Now(),
@@ -438,6 +460,7 @@ func (s *ACService) createPowerOnDetail(roomID int, currentTemp float32) error {
 		Cost:        0,
 		Rate:        0,
 		TempChange:  0,
+		TargetTemp:  targetTemp,
 		CurrentTemp: currentTemp,
 		DetailType:  db.DetailTypePowerOn,
 	}
@@ -451,7 +474,7 @@ func (s *ACService) createPowerOnDetail(roomID int, currentTemp float32) error {
 	return nil
 }
 
-func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, speed types.Speed) error {
+func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, targetTemp float32, speed types.Speed) error {
 	var powerOnDetail *db.Detail
 	details, err := s.detailRepo.GetDetailsByRoom(roomID)
 	if err != nil {
@@ -495,6 +518,7 @@ func (s *ACService) createPowerOffDetail(roomID int, currentTemp float32, speed 
 		Rate:        rate,
 		TempChange:  tempChange,
 		CurrentTemp: currentTemp,
+		TargetTemp:  targetTemp,
 		DetailType:  db.DetailTypePowerOff,
 	}
 

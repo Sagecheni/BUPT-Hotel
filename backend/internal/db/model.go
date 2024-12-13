@@ -6,10 +6,13 @@ import "time"
 type DetailType string
 
 const (
-	DetailTypePowerOn       DetailType = "power_on"       // 开机
-	DetailTypePowerOff      DetailType = "power_off"      // 关机
-	DetailTypeSpeedChange   DetailType = "speed_change"   // 调整风速
-	DetailTypeTargetReached DetailType = "target_reached" // 达到目标温度
+	DetailTypePowerOn          DetailType = "power_on"       // 开机
+	DetailTypePowerOff         DetailType = "power_off"      // 关机
+	DetailTypeSpeedChange      DetailType = "speed_change"   // 调整风速
+	DetailTypeTargetReached    DetailType = "target_reached" // 达到目标温度
+	DetailTypeServiceStart     DetailType = "service_start"
+	DetailTypeTemp             DetailType = "temp_change" // 调整目标温度
+	DetailTypeServiceInterrupt DetailType = "service_interrupt"
 )
 
 // 房间信息表
@@ -41,12 +44,14 @@ type Detail struct {
 	Rate        float32    `gorm:"type:float(5,2)"`  // 每分钟费率(元/分钟)
 	TempChange  float32    `gorm:"type:float(5,2)"`  // 温度变化
 	CurrentTemp float32    `gorm:"type:float(5,2)"`  // 当前温度
+	TargetTemp  float32    `gorm:"type:float(5,2)"`  // 目标温度
 	DetailType  DetailType `gorm:"type:varchar(20)"` // 详单类型
 }
 
 // 用户表
 type User struct {
-	Account  string `gorm:"primary_key;type:varchar(255)"`
-	Password string `gorm:"type:varchar(255)"`
-	Identity string `gorm:"type:varchar(255)"`
+	ID       int    `gorm:"primary_key;auto_increment"`
+	Username string `gorm:"type:varchar(255);unique;not null"`
+	Password string `gorm:"type:varchar(255);not null"`
+	Identity string `gorm:"type:varchar(255);not null"` // manager, customer, administrator, reception
 }

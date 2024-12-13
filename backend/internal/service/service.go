@@ -28,6 +28,20 @@ func InitServices() {
 	})
 }
 
+// StartMonitorService 启动监控服务
+func StartMonitorService() {
+	if monitorService != nil {
+		monitorService.StartQueuesMonitor(10 * time.Second)
+	}
+}
+
+// StopMonitorService 停止监控服务
+func StopMonitorService() {
+	if monitorService != nil {
+		monitorService.Stop()
+	}
+}
+
 // GetScheduler 获取调度器实例
 func GetScheduler() *Scheduler {
 	return schedulerService
