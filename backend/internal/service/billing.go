@@ -10,6 +10,7 @@ import (
 
 // 电费费率 (元/度)
 const PowerRate = 1.0
+const TimeScale = 6.0
 
 // roundTo2Decimals 将浮点数四舍五入到2位小数
 func roundTo2Decimals(value float32) float32 {
@@ -86,7 +87,7 @@ func (s *BillingService) CalculateCurrentSessionFee(roomID int) (float32, error)
 
 	// 如果在服务队列中，计算实时费用
 	if serviceObj, exists := s.scheduler.GetServiceQueue()[roomID]; exists {
-		duration := float32(time.Since(serviceObj.StartTime).Minutes())
+		duration := calculateScaledDuration(serviceObj.StartTime)
 		rate := speedToRate[string(serviceObj.Speed)]
 		currentServiceFee := roundTo2Decimals(duration * rate)
 		currentFee = roundTo2Decimals(currentFee + currentServiceFee)
@@ -199,10 +200,17 @@ func (s *BillingService) CalculateTotalFee(roomID int) (float32, error) {
 	return roundTo2Decimals(totalFee), nil
 }
 
+// calculateScaledDuration 计算缩放后的持续时间(分钟)
+func calculateScaledDuration(start time.Time) float32 {
+	realDuration := time.Since(start).Seconds()
+	// 将实际秒数转换为模拟的分钟数 (10秒=1分钟)
+	return float32(realDuration) * float32(TimeScale) / 60.0
+}
+
 // CreateDetail 创建详单记录
 func (s *BillingService) CreateDetail(roomID int, service *ServiceObject, detailType db.DetailType) error {
 	now := time.Now()
-	duration := float32(now.Sub(service.StartTime).Minutes())
+	duration := calculateScaledDuration(service.StartTime)
 	rate := speedToRate[string(service.Speed)]
 	cost := roundTo2Decimals(duration * rate)
 

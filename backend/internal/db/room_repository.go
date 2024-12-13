@@ -121,10 +121,24 @@ func (r *RoomRepository) GetDB() *gorm.DB {
 }
 
 // UpdateTemperature 更新房间温度
-func (r *RoomRepository) UpdateTemperature(roomID int, targetTemp float32) error {
+func (r *RoomRepository) UpdateTemperature(roomID int, currTeemp float32) error {
 	result := r.db.Model(&RoomInfo{}).
 		Where("room_id = ?", roomID).
-		Update("current_temp", targetTemp)
+		Update("current_temp", currTeemp)
+	if result.Error != nil {
+		return fmt.Errorf("更新房间温度失败: %v", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("房间不存在")
+	}
+	return nil
+}
+
+// UpdateTargetTemperature 更新房间目标温度
+func (r *RoomRepository) UpdateTargetTemperature(roomID int, targetTemp float32) error {
+	result := r.db.Model(&RoomInfo{}).
+		Where("room_id = ?", roomID).
+		Update("target_temp", targetTemp)
 	if result.Error != nil {
 		return fmt.Errorf("更新房间温度失败: %v", result.Error)
 	}
