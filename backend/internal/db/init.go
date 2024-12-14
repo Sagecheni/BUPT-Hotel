@@ -112,6 +112,7 @@ func InitRooms() {
 				CurrentTemp: 32.0,
 				ACState:     0, // 0: 关闭 1: 开启
 				InitialTemp: 32.0,
+				DailyRate:   100.0,
 			},
 			{
 				RoomID:      2,
@@ -119,6 +120,7 @@ func InitRooms() {
 				CurrentTemp: 28.0,
 				ACState:     0,
 				InitialTemp: 28.0,
+				DailyRate:   125.0,
 			},
 			{
 				RoomID:      3,
@@ -126,6 +128,7 @@ func InitRooms() {
 				CurrentTemp: 30.0,
 				ACState:     0,
 				InitialTemp: 30.0,
+				DailyRate:   150.0,
 			},
 			{
 				RoomID:      4,
@@ -133,6 +136,7 @@ func InitRooms() {
 				CurrentTemp: 29.0,
 				ACState:     0,
 				InitialTemp: 29.0,
+				DailyRate:   200.0,
 			},
 			{
 				RoomID:      5,
@@ -140,6 +144,7 @@ func InitRooms() {
 				CurrentTemp: 35.0,
 				ACState:     0,
 				InitialTemp: 35.0,
+				DailyRate:   100.0,
 			},
 		}
 

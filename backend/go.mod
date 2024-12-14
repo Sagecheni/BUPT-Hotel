@@ -5,6 +5,7 @@ go 1.23.3
 require (
 	github.com/fatih/color v1.18.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/jung-kurt/gofpdf v1.16.2
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12
 )

@@ -38,6 +38,8 @@ func SetupRouter() *gin.Engine {
 		room.POST("/checkout", roomHandler.CheckOut)
 		room.POST("/login", authHandler.Login)
 		room.POST("/aircon/report", reportHandler.GetReport)
+		room.POST("/print-detail", roomHandler.PrintDetail)
+		room.POST("/print-bill", roomHandler.PrintBill)
 	}
 	admin := router.Group("/admin")
 	{

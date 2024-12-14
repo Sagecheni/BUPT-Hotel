@@ -53,7 +53,7 @@ func (r *RoomRepository) UpdateRoom(room *RoomInfo) error {
 }
 
 // CheckIn 入住
-func (r *RoomRepository) CheckIn(roomID int, clientID, clientName string) error {
+func (r *RoomRepository) CheckIn(roomID int, clientID, clientName string, deposit float32) error {
 	now := time.Now()
 	return r.db.Model(&RoomInfo{}).Where("room_id = ? AND state = ?", roomID, 0).Updates(map[string]interface{}{
 		"client_id":     clientID,
@@ -64,6 +64,7 @@ func (r *RoomRepository) CheckIn(roomID int, clientID, clientName string) error 
 		"mode":          "cooling",   // 默认制冷模式
 		"current_speed": "",          // 清空风速
 		"target_temp":   float32(24), // 默认目标温度
+		"deposit":       deposit,     // 押金金额
 	}).Error
 }
 

@@ -29,6 +29,8 @@ type RoomInfo struct {
 	InitialTemp     float32   `gorm:"type:float(5,2)"`
 	LastPowerOnTime time.Time `gorm:"type:datetime"` // 记录最后一次开机时间
 	SwitchCount     int       `gorm:"type:int;default:0"`
+	DailyRate       float32   `gorm:"type:float(7,2)"`  // 每日房费
+	Deposit         float32   `gorm:"type:float(10,2)"` // 押金
 }
 
 // Detail 详单表
