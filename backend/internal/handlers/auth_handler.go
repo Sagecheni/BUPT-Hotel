@@ -20,32 +20,25 @@ type LoginResponse struct {
 }
 
 type RegisterRequest struct {
-	Username string `json:"username" binding:"required"`
+	Username string `json:"username" binding:"required"` //使用顾客姓名作为username
 	Password string `json:"password" binding:"required"`
-	Usertype string `json:"usertype" binding:"required"`
 }
 
 type RegisterResponse struct {
 	Msg      string `json:"msg"`
 	UserType string `json:"userType"`
-	Router   string `json:"router"`
+	RoomID   int    `json:"roomId,omitempty"`
 }
 
 type AuthHandler struct {
 	userRepo *db.UserRepository
-}
-
-// 用户类型和身份对应map
-var userType_Router_Map = map[string]string{
-	"manager":       "admin", // 管理员
-	"customer":      "panel", // 客户
-	"administrator": "api",   // 经理
-	"reception":     "api",   // 前台
+	roomRepo *db.RoomRepository // 添加roomRepo用于查询房间信息
 }
 
 func NewAuthHandler() *AuthHandler {
 	return &AuthHandler{
 		userRepo: db.NewUserRepository(),
+		roomRepo: db.NewRoomRepository(),
 	}
 }
 
@@ -83,53 +76,67 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
-			Msg: "Invalid request",
+			Msg: "无效的请求格式",
 			Err: err.Error(),
 		})
 		return
 	}
 
 	// 检查用户是否已存在
-	user, err := h.userRepo.GetUserByUsername(req.Username)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) { //如果错误是记录未找到，则表示用户不存在
-			// 用户不存在，可以继续注册
-			router, userType, err := h.registerUserAndGetUserType(req)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, Response{
-					Msg: "Register: 创建用户失败，是数据库问题，请稍后再试",
-					Err: err.Error(),
-				})
-				return
-			}
-			c.JSON(http.StatusOK, RegisterResponse{
-				Msg:      "Register: 用户注册成功",
-				UserType: userType,
-				Router:   router,
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, Response{
-				Msg: "Register: 查找用户时数据库错误",
-				Err: err.Error(),
-			})
-			return
-		}
-
-	} else if user != nil {
+	existingUser, err := h.userRepo.GetUserByUsername(req.Username)
+	if err == nil && existingUser != nil {
 		c.JSON(http.StatusBadRequest, Response{
-			Msg: "Register: 您要注册的用户已存在",
-			Err: "",
+			Msg: "该用户名已被注册",
+		})
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusInternalServerError, Response{
+			Msg: "查询用户信息失败",
+			Err: err.Error(),
 		})
 		return
 	}
 
-}
-
-// registerUserAndGetUserType 注册用户并返回用户类型
-func (h *AuthHandler) registerUserAndGetUserType(req RegisterRequest) (string, string, error) {
-	err := h.userRepo.CreateUser(req.Username, req.Password, req.Usertype)
+	// 获取所有入住房间
+	occupiedRooms, err := h.roomRepo.GetOccupiedRooms()
 	if err != nil {
-		return "", "", err
+		c.JSON(http.StatusInternalServerError, Response{
+			Msg: "查询入住信息失败",
+			Err: err.Error(),
+		})
+		return
 	}
-	return userType_Router_Map[req.Usertype], req.Usertype, nil
+
+	// 查找是否有该顾客的入住记录
+	var customerRoom *db.RoomInfo
+	for _, room := range occupiedRooms {
+		if room.ClientName == req.Username {
+			customerRoom = &room
+			break
+		}
+	}
+
+	if customerRoom == nil {
+		c.JSON(401, Response{
+			Msg: "该顾客未入住",
+		})
+		return
+	}
+
+	// 创建新用户
+	err = h.userRepo.CreateUser(req.Username, req.Password, "customer")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Msg: "创建用户失败",
+			Err: err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, RegisterResponse{
+		Msg:      "注册成功",
+		UserType: "customer",
+		RoomID:   customerRoom.RoomID,
+	})
 }

@@ -8,6 +8,7 @@ import (
 	"backend/internal/service"
 	"backend/internal/types"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -748,11 +749,6 @@ func (h *ACHandler) AdminChangeRate(c *gin.Context) {
 	})
 }
 
-// AdminRequestAllStateRequest 管理员请求所有状态的请求结构
-type AdminRequestAllStateRequest struct {
-	RoomNumber int `json:"roomNumber" binding:"required"`
-}
-
 // AdminAllStateResponse 管理员获取所有状态的响应结构
 type AdminAllStateResponse struct {
 	ACState                  bool    `json:"acState"`
@@ -767,14 +763,6 @@ type AdminAllStateResponse struct {
 
 // AdminRequestAllState 处理管理员获取所有状态的请求
 func (h *ACHandler) AdminRequestAllState(c *gin.Context) {
-	var req AdminRequestAllStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Msg: "无效的请求格式",
-			Err: err.Error(),
-		})
-		return
-	}
 
 	// 获取中央空调状态和模式
 	isOn, mode := h.acService.GetCentralACState()
@@ -994,11 +982,11 @@ func (h *ACHandler) MonitorRequestStates(c *gin.Context) {
 	response := MonitorStateResponse{
 		ACState:            acStatus.PowerState,
 		CurrentFanSpeed:    string(acStatus.CurrentSpeed),
-		CurrentTemperature: float64(acStatus.CurrentTemp),
+		CurrentTemperature: math.Round(float64(acStatus.CurrentTemp)*100) / 100,
 		OperationMode:      string(acStatus.Mode),
 		RoomNumber:         int64(room.RoomID),
 		ScheduleStatus:     isInService,
-		TargetTemperature:  float64(acStatus.TargetTemp),
+		TargetTemperature:  math.Round(float64(acStatus.TargetTemp)*100) / 100, // 保留2位小数
 		TotalCost:          float64(acStatus.TotalFee),
 		Valid:              true,
 	}

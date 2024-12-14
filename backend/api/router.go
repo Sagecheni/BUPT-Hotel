@@ -26,9 +26,10 @@ func SetupRouter() *gin.Engine {
 		// 开关机
 		panel.POST("/poweron", acHandler.PanelPowerOn)
 		panel.POST("/poweroff", acHandler.PanelPowerOff)
-		router.POST("/panel/changetemp", acHandler.PanelChangeTemp)
-		router.POST("/panel/changespeed", acHandler.PanelChangeSpeed)
-		router.POST("/panel/requeststatus", acHandler.PanelRequestStatus)
+		panel.POST("/changetemp", acHandler.PanelChangeTemp)
+		panel.POST("/changespeed", acHandler.PanelChangeSpeed)
+		panel.POST("/requeststate", acHandler.PanelRequestStatus)
+		panel.POST("/requestallstate", acHandler.PanelRequestAllState)
 
 	}
 
@@ -57,6 +58,7 @@ func SetupRouter() *gin.Engine {
 	{
 		monitor.POST("/monitorpoweron", acHandler.MonitorPowerOn)
 		monitor.POST("/monitorpoweroff", acHandler.MonitorPowerOff)
+		monitor.POST("/monitorrequeststates", acHandler.MonitorRequestStates)
 	}
 	return router
 }

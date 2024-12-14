@@ -384,3 +384,5 @@ func (h *RoomHandler) PrintBill(c *gin.Context) {
 	// 发送PDF文件
 	c.Data(http.StatusOK, "application/pdf", buf.Bytes())
 }
+
+
