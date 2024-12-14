@@ -17,6 +17,7 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	UserType string `json:"userType"`
+	Router   string `json:"router"`
 }
 
 type RegisterRequest struct {
@@ -69,6 +70,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LoginResponse{
 		UserType: user.Identity,
+		Router:   userType_Router_Map[user.Identity],
 	})
 }
 
