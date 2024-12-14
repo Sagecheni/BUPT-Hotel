@@ -19,6 +19,7 @@ func SetupRouter() *gin.Engine {
 	roomHandler := handlers.NewRoomHandler()
 	authHandler := handlers.NewAuthHandler()
 	reportHandler := handlers.NewReportHandler()
+
 	// 空调控制面板相关路由组
 	panel := router.Group("/panel")
 	{
@@ -31,12 +32,13 @@ func SetupRouter() *gin.Engine {
 
 	}
 
-	// 房间管理相关路由组
+	// 房间与前台管理相关路由组
 	room := router.Group("/api")
 	{
+		room.POST("/login", authHandler.Login)
+		room.POST("/register", authHandler.Register)
 		room.POST("/checkin", roomHandler.CheckIn)
 		room.POST("/checkout", roomHandler.CheckOut)
-		room.POST("/login", authHandler.Login)
 		room.POST("/aircon/report", reportHandler.GetReport)
 	}
 	admin := router.Group("/admin")
