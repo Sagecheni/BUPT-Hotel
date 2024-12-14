@@ -10,6 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// 用户类型和身份对应map
+var userType_Router_Map = map[string]string{
+	"manager":       "admin", // 管理员
+	"customer":      "panel", // 客户
+	"administrator": "api",   // 经理
+	"reception":     "api",   // 前台
+}
+
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
