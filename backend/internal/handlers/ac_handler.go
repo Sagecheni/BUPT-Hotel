@@ -511,7 +511,7 @@ func (h *ACHandler) PanelRequestStatus(c *gin.Context) {
 
 	response := RoomStatusResponse{
 		CurrentCost:        float32(currentFee),
-		CurrentTemperature: room.CurrentTemp,
+		CurrentTemperature: float32(math.Round(float64(room.CurrentTemp)*100) / 100),
 		TotalCost:          float32(totalFee),
 	}
 
@@ -574,13 +574,25 @@ func (h *ACHandler) PanelRequestAllState(c *gin.Context) {
 		}
 	}
 
+	// 将英文风速转换为中文
+	var fanSpeed string
+	switch room.CurrentSpeed {
+	case "low":
+		fanSpeed = "低"
+	case "medium":
+		fanSpeed = "中"
+	case "high":
+		fanSpeed = "高"
+	default:
+		fanSpeed = ""
+	}
 	response := AllStateResponse{
 		ACState:            room.ACState == 1,
 		CurrentCost:        float64(currentFee),
-		CurrentFanSpeed:    room.CurrentSpeed,
-		CurrentTemperature: float64(room.CurrentTemp),
+		CurrentFanSpeed:    fanSpeed,
+		CurrentTemperature: math.Round(float64(room.CurrentTemp)*100) / 100,
 		OperationMode:      room.Mode,
-		TargetTemperature:  float64(room.TargetTemp),
+		TargetTemperature:  math.Round(float64(room.TargetTemp)*100) / 100,
 		TotalCost:          float64(totalFee),
 	}
 
@@ -929,6 +941,7 @@ type MonitorStateResponse struct {
 	RoomNumber         int64   `json:"roomNumber"`
 	ScheduleStatus     bool    `json:"scheduleStatus"`
 	TargetTemperature  float64 `json:"targetTemperature"`
+	CurrentCost        float64 `json:"currentCost"`
 	TotalCost          float64 `json:"totalCost"`
 	Valid              bool    `json:"valid"`
 }
@@ -955,7 +968,7 @@ func (h *ACHandler) MonitorRequestStates(c *gin.Context) {
 	}
 
 	// 如果请求的索引超出有效房间数量，返回无效面板
-	if req.Index >= len(rooms) {
+	if req.Index-1 >= len(rooms) {
 		c.JSON(http.StatusOK, MonitorStateResponse{
 			Valid: false,
 		})
@@ -963,7 +976,7 @@ func (h *ACHandler) MonitorRequestStates(c *gin.Context) {
 	}
 
 	// 获取当前索引对应的房间
-	room := rooms[req.Index]
+	room := rooms[req.Index-1]
 
 	// 获取空调状态
 	acStatus, err := h.acService.GetACStatus(room.RoomID)
@@ -988,6 +1001,7 @@ func (h *ACHandler) MonitorRequestStates(c *gin.Context) {
 		ScheduleStatus:     isInService,
 		TargetTemperature:  math.Round(float64(acStatus.TargetTemp)*100) / 100, // 保留2位小数
 		TotalCost:          float64(acStatus.TotalFee),
+		CurrentCost:        float64(acStatus.CurrentFee),
 		Valid:              true,
 	}
 
