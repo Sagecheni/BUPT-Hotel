@@ -10,14 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// 用户类型和身份对应map
-var userType_Router_Map = map[string]string{
-	"manager":       "admin", // 管理员
-	"customer":      "panel", // 客户
-	"administrator": "api",   // 经理
-	"reception":     "api",   // 前台
-}
-
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -25,7 +17,7 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	UserType string `json:"userType"`
-	Router   string `json:"router"`
+	RoomID   int    `json:"roomId,omitempty"` // 可选的房间号
 }
 
 type RegisterRequest struct {
@@ -75,11 +67,28 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		})
 		return
 	}
-
-	c.JSON(http.StatusOK, LoginResponse{
+	response := LoginResponse{
 		UserType: user.Identity,
-		Router:   userType_Router_Map[user.Identity],
-	})
+	}
+	// 如果是客户，查找其房间号
+	if user.Identity == "customer" {
+		occupiedRooms, err := h.roomRepo.GetOccupiedRooms()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, Response{
+				Msg: "获取房间信息失败",
+				Err: err.Error(),
+			})
+			return
+		}
+		// 查找客户对应的房间
+		for _, room := range occupiedRooms {
+			if room.ClientName == user.Username {
+				response.RoomID = room.RoomID
+				break
+			}
+		}
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {

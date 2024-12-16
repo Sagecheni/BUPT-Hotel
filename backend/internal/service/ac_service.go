@@ -1,5 +1,6 @@
 // internal/service/ac_service.go
-
+// Package service 提供酒店空调系统的核心服务实现
+// 包括空调控制、调度管理、计费等功能
 package service
 
 import (
@@ -30,7 +31,8 @@ var (
 	acOnce    sync.Once
 )
 
-// ACService 集成空调控制和服务功能
+// ACService 空调服务对象
+// 提供空调系统的核心功能,包括开关机、温控、计费等
 type ACService struct {
 	mu         sync.RWMutex
 	config     types.Config
@@ -41,20 +43,21 @@ type ACService struct {
 
 	// 中央空调状态
 	centralACState struct {
-		isOn bool
-		mode types.Mode
+		isOn bool       // 是否开启
+		mode types.Mode // 工作模式(制冷/制热)
 	}
 }
 
-// ACStatus 空调状态结构体
+// ACStatus 空调状态信息结构体
+// 用于返回空调的完整运行状态
 type ACStatus struct {
-	CurrentTemp  float32
-	TargetTemp   float32
-	CurrentSpeed types.Speed
-	Mode         types.Mode
-	CurrentFee   float32
-	TotalFee     float32
-	PowerState   bool
+	CurrentTemp  float32     // 当前温度
+	TargetTemp   float32     // 目标温度
+	CurrentSpeed types.Speed // 当前风速
+	Mode         types.Mode  // 运行模式
+	CurrentFee   float32     // 当前费用
+	TotalFee     float32     // 总费用
+	PowerState   bool        // 开关机状态
 }
 
 // GetACService 获取 ACService 单例
@@ -79,7 +82,9 @@ func GetACService() *ACService {
 	return acService
 }
 
-// StartCentralAC 启动中央空调
+// StartCentralAC 启动中央空调系统
+// mode: 运行模式(制冷/制热)
+// 返回值: 错误信息
 func (s *ACService) StartCentralAC(mode types.Mode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -103,7 +108,8 @@ func (s *ACService) StartCentralAC(mode types.Mode) error {
 	return nil
 }
 
-// StopCentralAC 关闭中央空调
+// StopCentralAC 关闭中央空调系统
+// 返回值: 错误信息
 func (s *ACService) StopCentralAC() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -131,7 +137,9 @@ func (s *ACService) StopCentralAC() error {
 	return nil
 }
 
-// SetCentralACMode 设置中央空调模式
+// SetCentralACMode 设置中央空调运行模式
+// mode: 新的运行模式
+// 返回值: 错误信息
 func (s *ACService) SetCentralACMode(mode types.Mode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -154,7 +162,9 @@ func (s *ACService) SetCentralACMode(mode types.Mode) error {
 	return nil
 }
 
-// PowerOn 开启房间空调
+// PowerOn 开启指定房间的空调
+// roomID: 房间号
+// 返回值: 错误信息
 func (s *ACService) PowerOn(roomID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -218,6 +228,9 @@ func (s *ACService) PowerOff(roomID int) error {
 }
 
 // SetTemperature 设置目标温度
+// roomID: 房间号
+// targetTemp: 目标温度
+// 返回值: 错误信息
 func (s *ACService) SetTemperature(roomID int, targetTemp float32) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -270,6 +283,9 @@ func (s *ACService) SetTemperature(roomID int, targetTemp float32) error {
 }
 
 // SetFanSpeed 设置风速
+// roomID: 房间号
+// speed: 目标风速
+// 返回值: 错误信息
 func (s *ACService) SetFanSpeed(roomID int, speed types.Speed) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -311,6 +327,10 @@ func (s *ACService) SetFanSpeed(roomID int, speed types.Speed) error {
 }
 
 // GetACStatus 获取空调状态
+// roomID: 房间号
+// 返回值:
+//   - *ACStatus: 空调状态信息
+//   - error: 错误信息
 func (s *ACService) GetACStatus(roomID int) (*ACStatus, error) {
 	room, err := s.roomRepo.GetRoomByID(roomID)
 	if err != nil {
@@ -345,7 +365,10 @@ func (s *ACService) GetACStatus(roomID int) (*ACStatus, error) {
 	return status, nil
 }
 
-// GetCentralACState 获取中央空调状态
+// GetCentralACState 获取中央空调运行状态
+// 返回值:
+//   - bool: 是否开启
+//   - types.Mode: 当前运行模式
 func (s *ACService) GetCentralACState() (bool, types.Mode) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -359,7 +382,9 @@ func (s *ACService) GetConfig() types.Config {
 	return s.config
 }
 
-// SetConfig 设置空调配置的方法已存在，但我们需要确保它能正确处理温度范围的更新
+// SetConfig 设置空调系统配置
+// config: 新的配置信息
+// 返回值: 错误信息
 func (s *ACService) SetConfig(config types.Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -402,7 +427,10 @@ func (s *ACService) SetConfig(config types.Config) error {
 }
 
 // 内部辅助方法
-
+// isValidTemp 检查温度是否在指定模式的有效范围内
+// mode: 运行模式
+// temp: 待检查的温度
+// 返回值: 是否有效
 func (s *ACService) isValidTemp(mode types.Mode, temp float32) bool {
 	if tempRange, ok := s.config.TempRanges[mode]; ok {
 		return temp >= tempRange.Min && temp <= tempRange.Max
@@ -410,6 +438,9 @@ func (s *ACService) isValidTemp(mode types.Mode, temp float32) bool {
 	return false
 }
 
+// validateConfig 验证配置参数是否有效
+// config: 待验证的配置
+// 返回值: 错误信息
 func (s *ACService) validateConfig(config types.Config) error {
 	// 验证默认温度
 	if !s.isValidTemp(types.ModeCooling, config.DefaultTemp) &&

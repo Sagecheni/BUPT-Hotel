@@ -1,5 +1,6 @@
 // internal/service/scheduler.go
-
+// Package service 提供酒店空调系统的核心服务实现
+// 包括空调控制、调度管理、计费等功能
 package service
 
 import (
@@ -18,37 +19,39 @@ const (
 	WaitTime    = 20 // 时间片
 )
 
-// ServiceObject 服务对象
+// ServiceObject 表示一个正在服务中的空调对象
 type ServiceObject struct {
-	RoomID      int
-	StartTime   time.Time // 当前服务开始时间
-	PowerOnTime time.Time // 开机时间，用于费用计算
-	Speed       types.Speed
-	Duration    float32
-	TargetTemp  float32
-	CurrentTemp float32
-	IsCompleted bool
+	RoomID      int         // 房间唯一标识
+	StartTime   time.Time   // 当前服务周期的开始时间
+	PowerOnTime time.Time   // 本次开机的时间点,用于费用计算
+	Speed       types.Speed // 当前风速设置
+	Duration    float32     // 当前服务时长(秒)
+	TargetTemp  float32     // 目标温度
+	CurrentTemp float32     // 当前温度
+	IsCompleted bool        // 是否已完成服务
 }
 
-// WaitObject 等待对象
+// WaitObject 表示一个等待服务的请求对象
+// 用于管理未能立即得到服务的空调请求
 type WaitObject struct {
-	RoomID       int
-	RequestTime  time.Time
-	Speed        types.Speed
-	WaitDuration float32
-	TargetTemp   float32
-	CurrentTemp  float32
+	RoomID       int         // 请求房间号
+	RequestTime  time.Time   // 发起请求的时间
+	Speed        types.Speed // 请求的风速
+	WaitDuration float32     // 剩余等待时间
+	TargetTemp   float32     // 请求的目标温度
+	CurrentTemp  float32     // 请求时的当前温度
 }
 
-// PriorityItem 优先级队列项
+// PriorityQueue 优先级队列实现
+// 用于管理等待队列中的请求，支持基于优先级的排序
 type PriorityItem struct {
-	roomID    int
-	priority  int
-	waitObj   *WaitObject
-	indexHeap int
+	roomID    int         // 房间号
+	priority  int         // 优先级值
+	waitObj   *WaitObject // 等待对象
+	indexHeap int         // 在堆中的索引
 }
 
-// PriorityQueue 实现
+// 优先级队列必需的接口方法实现
 type PriorityQueue []*PriorityItem
 
 func (pq PriorityQueue) Len() int { return len(pq) }
@@ -80,20 +83,21 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return item
 }
 
-// Scheduler 调度器
+// Scheduler 空调调度器
+// 负责管理所有房间的空调请求,实现服务队列和等待队列的调度
 type Scheduler struct {
-	mu               sync.RWMutex
-	serviceQueue     map[int]*ServiceObject
-	waitQueue        *PriorityQueue
-	waitQueueIndex   map[int]*PriorityItem
-	currentService   int
-	stopChan         chan struct{}
-	billingService   *BillingService
-	enableLogging    bool
-	roomTemp         map[int]float32 // 用于缓存房间温度
-	tempRecoveryRate float32         // 回温速率(每10秒)
-	tempTicker       *time.Ticker
-	roomRepo         *db.RoomRepository
+	mu               sync.RWMutex           // 并发安全锁
+	serviceQueue     map[int]*ServiceObject // 服务队列,key为房间号
+	waitQueue        *PriorityQueue         // 等待队列,基于优先级排序
+	waitQueueIndex   map[int]*PriorityItem  // 等待队列索引,用于快速查找
+	currentService   int                    // 当前服务数量
+	stopChan         chan struct{}          // 停止信号通道
+	billingService   *BillingService        // 计费服务
+	enableLogging    bool                   // 是否启用日志
+	roomTemp         map[int]float32        // 房间温度缓存
+	tempRecoveryRate float32                // 温度回温率(每100ms)
+	tempTicker       *time.Ticker           // 温度更新定时器
+	roomRepo         *db.RoomRepository     // 房间数据访问对象
 }
 
 // 速度优先级映射
@@ -148,7 +152,15 @@ func (s *Scheduler) monitorRoomTemperature() {
 	}()
 }
 
-// HandleRequest 处理空调请求
+// HandleRequest 处理新的空调请求
+// 实现请求的优先级调度和时间片轮转调度
+// roomID: 请求的房间号
+// speed: 请求的风速
+// targetTemp: 目标温度
+// currentTemp: 当前温度
+// 返回值:
+//   - bool: 是否直接进入服务队列
+//   - error: 错误信息
 func (s *Scheduler) HandleRequest(roomID int, speed types.Speed, targetTemp, currentTemp float32) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -354,15 +366,18 @@ func (s *Scheduler) updateServiceStatus() {
 	}
 }
 
+// checkWaitQueue 检查等待队列中的请求
+// 处理等待超时的请求，实现时间片轮转调度
 func (s *Scheduler) checkWaitQueue() {
 	if s.waitQueue.Len() == 0 {
 		return
 	}
-
+	// 遍历等待队列中的所有请求
 	for _, item := range *s.waitQueue {
-		item.waitObj.WaitDuration -= 1
-
+		item.waitObj.WaitDuration -= 1 // 递减等待时间
+		// 当等待时间到期时进行处理
 		if item.waitObj.WaitDuration <= 0 {
+			// 查找服务时间最长的相同风速级别的服务
 			var longestServiceRoom int
 			var maxDuration float32 = 0
 
@@ -402,6 +417,12 @@ func (s *Scheduler) checkWaitQueue() {
 	}
 }
 
+// addToServiceQueue 将请求添加到服务队列
+// roomID: 房间号
+// speed: 风速设置
+// targetTemp: 目标温度
+// currentTemp: 当前温度
+// 返回值: 错误信息
 func (s *Scheduler) addToServiceQueue(roomID int, speed types.Speed, targetTemp, currentTemp float32) error {
 	if err := s.roomRepo.UpdateSpeed(roomID, string(speed)); err != nil {
 		return fmt.Errorf("更新房间风速失败: %v", err)
@@ -437,6 +458,11 @@ func (s *Scheduler) addToServiceQueue(roomID int, speed types.Speed, targetTemp,
 	return nil
 }
 
+// addToWaitQueue 将请求添加到等待队列
+// roomID: 房间号
+// speed: 请求的风速级别
+// targetTemp: 目标温度
+// currentTemp: 当前温度
 func (s *Scheduler) addToWaitQueue(roomID int, speed types.Speed, targetTemp, currentTemp float32) {
 	waitObj := &WaitObject{
 		RoomID:       roomID,
@@ -457,6 +483,9 @@ func (s *Scheduler) addToWaitQueue(roomID int, speed types.Speed, targetTemp, cu
 	s.waitQueueIndex[roomID] = item
 }
 
+// calculateWaitDuration 计算新请求的等待时间
+// 根据当前等待队列长度动态调整等待时间
+// 返回值: 计算得到的等待时间(秒)
 func (s *Scheduler) calculateWaitDuration() float32 {
 	baseDuration := float32(WaitTime)
 	queueLength := s.waitQueue.Len()
@@ -467,6 +496,9 @@ func (s *Scheduler) calculateWaitDuration() float32 {
 	return baseDuration
 }
 
+// findLowPriorityServices 查找优先级较低的服务
+// requestPriority: 新请求的优先级
+// 返回值: 优先级低于请求的服务对象列表
 func (s *Scheduler) findLowPriorityServices(requestPriority int) []*ServiceObject {
 	services := make([]*ServiceObject, 0)
 	for _, service := range s.serviceQueue {
@@ -477,6 +509,9 @@ func (s *Scheduler) findLowPriorityServices(requestPriority int) []*ServiceObjec
 	return services
 }
 
+// selectVictim 在候选服务中选择被抢占的对象
+// candidates: 候选服务列表
+// 返回值: 被选中要抢占的服务对象
 func (s *Scheduler) selectVictim(candidates []*ServiceObject) *ServiceObject {
 	if len(candidates) == 0 {
 		return nil
@@ -575,7 +610,8 @@ func (s *Scheduler) Stop() {
 	close(s.stopChan)
 }
 
-// handleTemperatureRecovery 处理回温
+// handleTemperatureRecovery 处理房间温度回温
+// 当空调未在服务时，房间温度会逐渐恢复到初始温度
 func (s *Scheduler) handleTemperatureRecovery() {
 	// 1. 获取当前在服务队列中的房间列表
 	s.mu.RLock()

@@ -55,6 +55,25 @@ type ServicePeriod struct {
 	EndTime   time.Time
 }
 
+// getReport 生成指定时间范围内的统计报告
+//
+// 该方法为每个房间生成详细的统计记录，包括：
+// - 空调开关次数
+// - 调度次数（服务中断）
+// - 温度调节次数
+// - 风速调节次数
+// - 服务时长（分钟）
+// - 总费用
+//
+// 参数:
+//   - startTime: 统计开始时间
+//   - endTime: 统计结束时间
+//
+// 返回:
+//   - []StatisticRecord: 包含每个房间统计数据的记录切片
+//   - error: 处理过程中可能发生的错误
+//
+// 注意：如果在获取某个房间的数据过程中发生错误，该房间将被跳过，继续处理其他房间
 func (s *StatisticsService) getReport(startTime, endTime time.Time) ([]StatisticRecord, error) {
 	rooms, err := s.roomRepo.GetAllRooms()
 	if err != nil {
